@@ -62,7 +62,7 @@ model Item {
   id              Int      @id @default(autoincrement())
   listId          Int
   name            String
-  cartState       String   @default("needed") // "needed" | "in_cart" | "purchased"
+  cartState       String   @default("needed") // "needed" | "inCart" | "purchased"
   createdByUserId Int
   createdAt       DateTime @default(now())
 

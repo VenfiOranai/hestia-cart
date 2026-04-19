@@ -46,7 +46,7 @@ async function main() {
     data: {
       listId: list.id,
       name: "Sourdough Bread",
-      cartState: "in_cart",
+      cartState: "inCart",
       createdByUserId: bob.id,
     },
   });
