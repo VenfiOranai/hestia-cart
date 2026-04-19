@@ -1,6 +1,6 @@
 # Hestia Cart — Feature Plan
 
-> Status: **Milestone 2 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
+> Status: **Milestone 3 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
 
 ---
 
@@ -40,20 +40,12 @@ All REST endpoints implemented with Zod validation, 404 handling, and tested via
 
 ---
 
-## Milestone 3 — Shared Types & API Client
+## Milestone 3 — Shared Types & API Client (DONE)
 
-### 3.1 Shared request/response types
-
-Add TypeScript interfaces in `shared/src/` for every API request and response shape. Both client and server import these to stay in sync.
-
-- `shared/src/api.ts` — request body types, response types
-- Keep `shared/src/index.ts` as the barrel export
-
-### 3.2 Client-side API layer
-
-Create a thin fetch wrapper the React app uses for all API calls. Handles JSON parsing, error extraction, and base URL.
-
-- `client/src/api.ts` — typed functions like `createList(name)`, `getList(id)`, `addItem(listId, ...)`, etc.
+- `shared/src/api.ts` — all API types: base models (User, List, Item, etc.), nested response shapes (ListWithDetails, ItemWithDetails, PurchaseWithDetails), request body types, ApiError
+- `shared/src/index.ts` — barrel re-exports all API types
+- `client/src/api.ts` — typed fetch wrapper with `ApiRequestError` class; functions for every endpoint (getHealth, createUser, getList, createItem, updateItem, addExclusion, createPurchase, etc.)
+- `client/src/App.tsx` — updated to use `getHealth()` from API layer instead of raw fetch
 
 ---
 

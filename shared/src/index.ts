@@ -19,3 +19,8 @@ export interface HealthResponse {
   status: "ok";
   timestamp: string;
 }
+
+// Re-export all API types so consumers can do `import { User, List, ... } from "shared"`
+export * from "./models.js";
+export * from "./responses.js";
+export * from "./requests.js";

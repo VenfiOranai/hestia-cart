@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
 import type { HealthResponse } from "shared";
+import { getHealth } from "./api/index";
 
 export default function App() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/health")
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data: HealthResponse) => setHealth(data))
+    getHealth()
+      .then(setHealth)
       .catch((err) => setError(err.message));
   }, []);
 

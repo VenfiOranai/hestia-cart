@@ -15,6 +15,7 @@ Shared grocery list app — "Splitwise meets a notes app" for group grocery shop
 ```
 client/                    # React frontend (Vite on :5173)
   src/App.tsx              # Main component (currently health-check only)
+  src/api.ts               # Typed API client — fetch wrapper + functions for every endpoint
   src/main.tsx             # Entry point
   vite.config.ts           # Proxy /api/* → localhost:3001
 server/                    # Express backend (:3001)
@@ -27,7 +28,8 @@ server/                    # Express backend (:3001)
   prisma/seed.ts           # Test data seeder
   prisma.config.ts         # Prisma config (seed command)
 shared/                    # Shared TypeScript types
-  src/index.ts             # ListStatus enum, CartState enum, HealthResponse interface
+  src/index.ts             # ListStatus enum, CartState enum, HealthResponse, re-exports api.ts
+  src/api.ts               # All API types: base models, nested response shapes, request bodies
 ```
 
 ## Commands
@@ -68,6 +70,7 @@ All mounted under `/api` in `server/src/index.ts`.
 - **NotFoundError** class (from `middleware/errorHandler.ts`) — throw from route handlers for 404s
 - **Prisma nested creates** for purchases (purchase + items in one implicit transaction)
 - **Shared package** uses `"type": "module"` and `"exports"` field for ESM compatibility with tsx
+- **Client API layer** (`client/src/api.ts`) — typed fetch wrapper; all API calls go through this, not raw `fetch`. Throws `ApiRequestError` on non-2xx responses
 
 ## Conventions
 
@@ -79,7 +82,7 @@ All mounted under `/api` in `server/src/index.ts`.
 
 ## Current Status
 
-See `PLAN.md` for the full feature roadmap. Milestones 0-2 are complete (skeleton, server foundation, CRUD endpoints). Next up: Milestone 3 (shared API types + client-side API layer), then Milestone 4 (client routing + pages).
+See `PLAN.md` for the full feature roadmap. Milestones 0-3 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client). Next up: Milestone 4 (client routing + pages), then Milestone 5 (list view UI).
 
 ## No Auth
 
