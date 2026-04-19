@@ -1,0 +1,118 @@
+// Prisma schema for Hestia Cart.
+//
+// We use SQLite for local dev but the schema avoids SQLite-specific features
+// so it can migrate to Postgres later. The main thing to know:
+//   - `@default(autoincrement())` works on both SQLite and Postgres.
+//   - Enums aren't supported in SQLite, so we store enum-like values as plain
+//     Strings and validate them in application code (via Zod on the server,
+//     and the shared TypeScript union types).
+//   - `@default(now())` and `@updatedAt` work on both providers.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  color     String   // hex color for avatar, e.g. "#4f46e5"
+  createdAt DateTime @default(now())
+
+  // Relations
+  memberships    ListMember[]
+  createdItems   Item[]          @relation("ItemCreator")
+  paidPurchases  Purchase[]
+  itemExclusions ItemExclusion[]
+}
+
+model List {
+  id         Int      @id @default(autoincrement())
+  shareToken String   @unique // unguessable token for share URLs (cuid)
+  name       String
+  status     String   @default("open") // "open" | "closed"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  members   ListMember[]
+  items     Item[]
+  purchases Purchase[]
+}
+
+model ListMember {
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  listId   Int
+  joinedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  list List @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listId])
+  @@index([userId])
+  @@index([listId])
+}
+
+model Item {
+  id              Int      @id @default(autoincrement())
+  listId          Int
+  name            String
+  cartState       String   @default("needed") // "needed" | "in_cart" | "purchased"
+  createdByUserId Int
+  createdAt       DateTime @default(now())
+
+  list      List            @relation(fields: [listId], references: [id], onDelete: Cascade)
+  createdBy User            @relation("ItemCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  exclusions ItemExclusion[]
+  purchaseItems PurchaseItem[]
+
+  @@index([listId])
+  @@index([createdByUserId])
+}
+
+model ItemExclusion {
+  id     Int @id @default(autoincrement())
+  itemId Int
+  userId Int
+
+  item Item @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // A user can only be excluded from a given item once.
+  @@unique([itemId, userId])
+  @@index([itemId])
+  @@index([userId])
+}
+
+model Purchase {
+  id          Int      @id @default(autoincrement())
+  listId      Int
+  payerUserId Int
+  createdAt   DateTime @default(now())
+
+  list  List           @relation(fields: [listId], references: [id], onDelete: Cascade)
+  payer User           @relation(fields: [payerUserId], references: [id], onDelete: Cascade)
+  items PurchaseItem[]
+
+  @@index([listId])
+  @@index([payerUserId])
+}
+
+model PurchaseItem {
+  id         Int @id @default(autoincrement())
+  purchaseId Int
+  itemId     Int
+  priceCents Int // money stored as integer cents/agorot — never floats
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  item     Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([purchaseId, itemId])
+  @@index([purchaseId])
+  @@index([itemId])
+}
