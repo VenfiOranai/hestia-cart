@@ -1,6 +1,6 @@
 # Hestia Cart — Feature Plan
 
-> Status: **Skeleton complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
+> Status: **Milestone 1 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
 
 ---
 
@@ -13,51 +13,17 @@ What's already in place:
 - Prisma schema: User, List, ListMember, Item, ItemExclusion, Purchase, PurchaseItem
 - SQLite database with seed data (3 users, 1 list, 4 items, 2 exclusions, 1 purchase)
 - React client with Tailwind, Vite proxy to Express, health-check display
-- Shared types: `HealthResponse`, `ListStatus`, `CartState`
+- Shared types: `HealthResponse`, `ListStatus` (enum), `CartState` (enum)
 
 ---
 
-## Milestone 1 — Server Foundation
+## Milestone 1 — Server Foundation (DONE)
 
-Set up the patterns every endpoint will use before writing business-logic routes.
-
-### 1.1 Prisma client singleton
-
-Create a shared Prisma client instance so every route uses the same connection.
-
-- `server/src/db.ts` — export a single `PrismaClient` instance
-
-### 1.2 Zod validation schemas
-
-Define Zod schemas for every API request body. These live alongside the routes that use them.
-
-- Validate `name`, `color`, `status`, `cartState`, `priceCents`, etc.
-- Export inferred TypeScript types from each schema
-
-### 1.3 Error handling middleware
-
-Add an Express error handler that catches thrown errors and returns consistent JSON:
-
-```json
-{ "error": "message here" }
-```
-
-- 400 for validation errors (Zod parse failures)
-- 404 for not-found
-- 500 for unexpected errors
-
-`server/src/middleware/errorHandler.ts`
-
-### 1.4 Route organization
-
-Split routes into per-resource routers mounted under `/api`:
-
-- `server/src/routes/users.ts`
-- `server/src/routes/lists.ts`
-- `server/src/routes/items.ts`
-- `server/src/routes/purchases.ts`
-
-Mount them in `server/src/index.ts`.
+- `server/src/db.ts` — Prisma client singleton
+- `server/src/schemas/` — Zod validation schemas split per resource (`users.ts`, `lists.ts`, `items.ts`, `purchases.ts`) with barrel `index.ts`
+- `server/src/middleware/errorHandler.ts` — error handler (400 Zod, 404 NotFoundError, 500 fallback)
+- `server/src/routes/` — stub routers for users, lists, items, purchases, mounted in `index.ts`
+- Shared types updated to enums (`ListStatus`, `CartState`); seed data aligned (`"inCart"` not `"in_cart"`)
 
 ---
 
@@ -304,9 +270,9 @@ Events to broadcast:
 
 ### 10.1 Input validation
 
-- Zod schemas on every POST/PATCH endpoint (already set up, just needs schemas)
-- Sanitize item names (trim whitespace, cap length)
-- Validate hex color format
+- Zod schemas already defined in `server/src/schemas/` — wire into every POST/PATCH handler
+- Sanitize item names (trim whitespace, cap length) — already handled by Zod `.trim().max()`
+- Validate hex color format — already handled by Zod regex
 
 ### 10.2 Rate limiting
 
