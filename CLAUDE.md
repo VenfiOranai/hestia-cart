@@ -5,7 +5,7 @@ Shared grocery list app — "Splitwise meets a notes app" for group grocery shop
 ## Tech Stack
 
 - **Monorepo** via npm workspaces: `client/`, `server/`, `shared/`
-- **Client**: React 19, Vite, TypeScript, Tailwind CSS 3
+- **Client**: React 19, Vite, TypeScript, Tailwind CSS 3, React Router
 - **Server**: Express 5, TypeScript, Zod validation, `tsx watch` for dev
 - **Database**: SQLite (local dev) via Prisma ORM — schema designed for Postgres migration
 - **Shared**: TypeScript enums and interfaces imported by both client and server
@@ -14,8 +14,17 @@ Shared grocery list app — "Splitwise meets a notes app" for group grocery shop
 
 ```
 client/                    # React frontend (Vite on :5173)
-  src/App.tsx              # Main component (currently health-check only)
-  src/api.ts               # Typed API client — fetch wrapper + functions for every endpoint
+  src/App.tsx              # BrowserRouter with routes
+  src/api/                 # Typed API client (split per resource)
+    client.ts              # Fetch wrapper (request<T>()) + ApiRequestError
+    index.ts               # Barrel re-exports
+    health.ts, users.ts, lists.ts, items.ts, purchases.ts
+  src/components/
+    Layout.tsx             # Header + Outlet, mobile-first (max-w-lg)
+  src/pages/
+    HomePage.tsx           # Create a new list
+    ListPage.tsx           # View a list (items + members)
+    JoinPage.tsx           # Join via share link (name + color picker)
   src/main.tsx             # Entry point
   vite.config.ts           # Proxy /api/* → localhost:3001
 server/                    # Express backend (:3001)
@@ -28,8 +37,10 @@ server/                    # Express backend (:3001)
   prisma/seed.ts           # Test data seeder
   prisma.config.ts         # Prisma config (seed command)
 shared/                    # Shared TypeScript types
-  src/index.ts             # ListStatus enum, CartState enum, HealthResponse, re-exports api.ts
-  src/api.ts               # All API types: base models, nested response shapes, request bodies
+  src/index.ts             # ListStatus enum, CartState enum, HealthResponse, barrel re-exports
+  src/models.ts            # Base DB model interfaces (User, List, Item, etc.)
+  src/responses.ts         # Nested response shapes (ListWithDetails, etc.) + ApiError
+  src/requests.ts          # Request body types (CreateUserBody, etc.)
 ```
 
 ## Commands
@@ -70,7 +81,9 @@ All mounted under `/api` in `server/src/index.ts`.
 - **NotFoundError** class (from `middleware/errorHandler.ts`) — throw from route handlers for 404s
 - **Prisma nested creates** for purchases (purchase + items in one implicit transaction)
 - **Shared package** uses `"type": "module"` and `"exports"` field for ESM compatibility with tsx
-- **Client API layer** (`client/src/api.ts`) — typed fetch wrapper; all API calls go through this, not raw `fetch`. Throws `ApiRequestError` on non-2xx responses
+- **Client API layer** (`client/src/api/`) — typed fetch wrapper; all API calls go through this, not raw `fetch`. Throws `ApiRequestError` on non-2xx responses
+- **Client routing** — React Router with `Layout` > page pattern. Routes: `/` (home), `/list/:id`, `/join/:shareToken`
+- **User identity** — stored in `localStorage` as `"hestia-user"` (JSON User object), set during join flow
 
 ## Conventions
 
@@ -82,7 +95,7 @@ All mounted under `/api` in `server/src/index.ts`.
 
 ## Current Status
 
-See `PLAN.md` for the full feature roadmap. Milestones 0-3 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client). Next up: Milestone 4 (client routing + pages), then Milestone 5 (list view UI).
+See `PLAN.md` for the full feature roadmap. Milestones 0-4 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages). Next up: Milestone 5 (list view core UI), then Milestone 6 (join flow refinement).
 
 ## No Auth
 

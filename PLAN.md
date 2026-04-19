@@ -1,6 +1,6 @@
 # Hestia Cart — Feature Plan
 
-> Status: **Milestone 3 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
+> Status: **Milestone 4 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
 
 ---
 
@@ -49,24 +49,14 @@ All REST endpoints implemented with Zod validation, 404 handling, and tested via
 
 ---
 
-## Milestone 4 — Client Routing & Pages
+## Milestone 4 — Client Routing & Pages (DONE)
 
-### 4.1 Install React Router
-
-Add `react-router-dom` for client-side routing.
-
-### 4.2 Pages
-
-| Route | Page | Description |
-|-------|------|-------------|
-| `/` | Home | Create a new list or enter a share link |
-| `/list/:id` | List View | Main shopping list UI |
-| `/join/:shareToken` | Join | Enter name + pick color, then redirect to list |
-
-### 4.3 Layout
-
-- Simple layout component with a header (app name, current user indicator)
-- Mobile-first design — this app will mostly be used on phones in a store
+- Installed `react-router-dom`
+- `client/src/App.tsx` — BrowserRouter with routes: `/`, `/list/:id`, `/join/:shareToken`
+- `client/src/components/Layout.tsx` — header with home link, max-w-lg centered content area, mobile-first
+- `client/src/pages/HomePage.tsx` — create-list form, shows saved user identity from localStorage
+- `client/src/pages/ListPage.tsx` — fetches list by id, shows items + members (placeholder UI for M5)
+- `client/src/pages/JoinPage.tsx` — fetches list by shareToken, name input + color picker (8 colors), creates user, joins list, saves to localStorage, redirects to list
 
 ---
 
