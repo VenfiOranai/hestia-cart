@@ -1,6 +1,6 @@
 # Hestia Cart — Feature Plan
 
-> Status: **Milestone 1 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
+> Status: **Milestone 2 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
 
 ---
 
@@ -27,63 +27,16 @@ What's already in place:
 
 ---
 
-## Milestone 2 — Core CRUD Endpoints
+## Milestone 2 — Core CRUD Endpoints (DONE)
 
-Build out the REST API for all resources. No auth — any caller can do anything.
+All REST endpoints implemented with Zod validation, 404 handling, and tested via curl.
 
-### 2.1 Users
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/users` | Create a user (name, color) |
-| `GET` | `/api/users/:id` | Get a user by ID |
-
-No update/delete needed yet — users are ephemeral.
-
-### 2.2 Lists
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/lists` | Create a list (name). Auto-generate `shareToken`. |
-| `GET` | `/api/lists/:id` | Get a list with members and items |
-| `PATCH` | `/api/lists/:id` | Update list name or status |
-| `DELETE` | `/api/lists/:id` | Delete a list (cascades to members, items, purchases) |
-| `GET` | `/api/lists/join/:shareToken` | Look up a list by its share token |
-
-When creating a list, also create a ListMember row for the creating user.
-
-### 2.3 List Members
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/lists/:listId/members` | Add a user to a list (join) |
-| `DELETE` | `/api/lists/:listId/members/:userId` | Remove a user from a list |
-| `GET` | `/api/lists/:listId/members` | List all members |
-
-### 2.4 Items
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/lists/:listId/items` | Add an item |
-| `GET` | `/api/lists/:listId/items` | List all items (include exclusions) |
-| `PATCH` | `/api/items/:id` | Update item name or cartState |
-| `DELETE` | `/api/items/:id` | Delete an item |
-
-### 2.5 Item Exclusions
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/items/:itemId/exclusions` | Exclude a user from an item |
-| `DELETE` | `/api/items/:itemId/exclusions/:userId` | Remove an exclusion (re-include user) |
-
-### 2.6 Purchases
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/lists/:listId/purchases` | Create a purchase (payerUserId, items with prices) |
-| `GET` | `/api/lists/:listId/purchases` | List all purchases for a list |
-
-A purchase is created in a single request with nested purchase items (each with `itemId` and `priceCents`). Use a Prisma transaction.
+- `server/src/routes/users.ts` — POST create, GET by id
+- `server/src/routes/lists.ts` — POST create (auto-generates shareToken via cuid2), GET by id (includes members + items), PATCH, DELETE (cascades), GET join by shareToken, member CRUD
+- `server/src/routes/items.ts` — POST create, GET by list, PATCH (name/cartState), DELETE, exclusion create/delete
+- `server/src/routes/purchases.ts` — POST create (nested purchase items in one transaction), GET by list
+- Installed `@paralleldrive/cuid2` for share token generation
+- Fixed `shared/package.json`: added `"type": "module"` and `"exports"` for ESM compatibility
 
 ---
 

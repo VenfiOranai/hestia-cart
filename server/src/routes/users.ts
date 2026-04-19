@@ -1,8 +1,23 @@
 import { Router } from "express";
+import prisma from "../db.js";
+import { createUserSchema } from "../schemas/index.js";
+import { NotFoundError } from "../middleware/errorHandler.js";
 
 const router = Router();
 
-// POST /api/users       — create a user
-// GET  /api/users/:id   — get a user by ID
+// POST /api/users — create a user
+router.post("/users", async (req, res) => {
+  const data = createUserSchema.parse(req.body);
+  const user = await prisma.user.create({ data });
+  res.status(201).json(user);
+});
+
+// GET /api/users/:id — get a user by ID
+router.get("/users/:id", async (req, res) => {
+  const id = Number(req.params.id);
+  const user = await prisma.user.findUnique({ where: { id } });
+  if (!user) throw new NotFoundError("User", id);
+  res.json(user);
+});
 
 export default router;
