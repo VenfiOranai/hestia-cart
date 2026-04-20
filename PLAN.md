@@ -1,6 +1,6 @@
 # Hestia Cart — Feature Plan
 
-> Status: **Milestone 5 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
+> Status: **Milestone 6 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
 
 ---
 
@@ -71,17 +71,13 @@ All REST endpoints implemented with Zod validation, 404 handling, and tested via
 
 ---
 
-## Milestone 6 — Join Flow
+## Milestone 6 — Join Flow (DONE)
 
-What happens when someone opens a share link.
-
-1. `GET /api/lists/join/:shareToken` to look up the list
-2. If the user doesn't exist yet, show a form: enter name, pick a color
-3. `POST /api/users` to create the user
-4. `POST /api/lists/:listId/members` to join
-5. Redirect to `/list/:id`
-
-Store the current user's ID in localStorage so they're "remembered" on that device. No real auth — just a local identity.
+- `client/src/pages/JoinPage.tsx` — three cases handled:
+  1. **Already a member** (saved user id is in the list's members) → auto-redirect to `/list/:id`
+  2. **Returning user** (saved identity exists but not a member) → "Join as X" quick-rejoin button, plus option to join as someone new
+  3. **New user** → name input + color picker, creates user + joins + saves to localStorage
+- `client/src/pages/HomePage.tsx` — after creating a list, auto-adds the saved user as a member (if identity exists)
 
 ---
 

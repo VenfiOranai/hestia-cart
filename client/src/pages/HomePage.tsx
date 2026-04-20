@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createList } from "../api";
+import { addMember, createList } from "../api";
 import type { User } from "shared";
+
+function getSavedUser(): User | null {
+  const raw = localStorage.getItem("hestia-user");
+  return raw ? JSON.parse(raw) : null;
+}
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -9,11 +14,7 @@ export default function HomePage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Read saved user identity from localStorage (set during join flow).
-  const savedUser: User | null = (() => {
-    const raw = localStorage.getItem("hestia-user");
-    return raw ? JSON.parse(raw) : null;
-  })();
+  const savedUser = getSavedUser();
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -23,6 +24,12 @@ export default function HomePage() {
 
     try {
       const list = await createList({ name: listName.trim() });
+
+      // Auto-add the creator as a member if we have a saved identity.
+      if (savedUser) {
+        await addMember(list.id, savedUser.id);
+      }
+
       navigate(`/list/${list.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create list");

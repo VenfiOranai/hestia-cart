@@ -88,7 +88,8 @@ All mounted under `/api` in `server/src/index.ts`.
 - **Shared package** uses `"type": "module"` and `"exports"` field for ESM compatibility with tsx
 - **Client API layer** (`client/src/api/`) — typed fetch wrapper; all API calls go through this, not raw `fetch`. Throws `ApiRequestError` on non-2xx responses
 - **Client routing** — React Router with `Layout` > page pattern. Routes: `/` (home), `/list/:id`, `/join/:shareToken`
-- **User identity** — stored in `localStorage` as `"hestia-user"` (JSON User object), set during join flow
+- **User identity** — stored in `localStorage` as `"hestia-user"` (JSON User object), set during join flow. Read via `getSavedUser()` helper in pages
+- **Join flow** — JoinPage handles 3 cases: already-a-member (auto-redirect), returning user (quick rejoin), new user (full form). HomePage auto-adds creator as member
 - **List view state** — ListPage holds `ListWithDetails` in local state; child components call API then notify parent via callbacks (`onItemAdded`, `onUpdated`, `onDeleted`, etc.) to update state without re-fetching
 - **Cart state cycling** — ItemRow cycles needed→inCart→purchased→needed on click via `NEXT_STATE` map
 
@@ -102,7 +103,7 @@ All mounted under `/api` in `server/src/index.ts`.
 
 ## Current Status
 
-See `PLAN.md` for the full feature roadmap. Milestones 0-5 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages, list view core UI). Next up: Milestone 6 (join flow — mostly done, may just need polish), then Milestone 7 (checkout + cost splitting).
+See `PLAN.md` for the full feature roadmap. Milestones 0-6 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages, list view core UI, join flow). Next up: Milestone 7 (checkout + cost splitting).
 
 ## No Auth
 

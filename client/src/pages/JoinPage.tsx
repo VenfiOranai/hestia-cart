@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { addMember, createUser, getListByShareToken } from "../api";
-import type { ListWithDetails } from "shared";
+import type { ListWithDetails, User } from "shared";
 
 const COLORS = [
   "#4f46e5", // indigo
@@ -13,6 +13,11 @@ const COLORS = [
   "#c026d3", // fuchsia
   "#65a30d", // lime
 ];
+
+function getSavedUser(): User | null {
+  const raw = localStorage.getItem("hestia-user");
+  return raw ? JSON.parse(raw) : null;
+}
 
 export default function JoinPage() {
   const { shareToken } = useParams<{ shareToken: string }>();
@@ -26,14 +31,40 @@ export default function JoinPage() {
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
 
+  const savedUser = getSavedUser();
+
   useEffect(() => {
     if (!shareToken) return;
     getListByShareToken(shareToken)
-      .then(setList)
-      .catch((err) => setLoadError(err.message));
-  }, [shareToken]);
+      .then((fetched) => {
+        setList(fetched);
 
-  async function handleJoin(e: React.FormEvent) {
+        // If the saved user is already a member, go straight to the list.
+        const saved = getSavedUser();
+        if (saved && fetched.members.some((m) => m.userId === saved.id)) {
+          navigate(`/list/${fetched.id}`, { replace: true });
+        }
+      })
+      .catch((err) => setLoadError(err.message));
+  }, [shareToken, navigate]);
+
+  /** Join as a returning user (already have a saved identity). */
+  async function handleRejoin() {
+    if (!list || !savedUser) return;
+    setJoining(true);
+    setJoinError(null);
+
+    try {
+      await addMember(list.id, savedUser.id);
+      navigate(`/list/${list.id}`);
+    } catch (err) {
+      setJoinError(err instanceof Error ? err.message : "Failed to join");
+      setJoining(false);
+    }
+  }
+
+  /** Join as a new user (create user, then add as member). */
+  async function handleJoinNew(e: React.FormEvent) {
     e.preventDefault();
     if (!list || !name.trim()) return;
     setJoining(true);
@@ -42,10 +73,7 @@ export default function JoinPage() {
     try {
       const user = await createUser({ name: name.trim(), color });
       await addMember(list.id, user.id);
-
-      // Save identity locally so the app remembers who we are.
       localStorage.setItem("hestia-user", JSON.stringify(user));
-
       navigate(`/list/${list.id}`);
     } catch (err) {
       setJoinError(err instanceof Error ? err.message : "Failed to join");
@@ -79,11 +107,43 @@ export default function JoinPage() {
           Join "{list.name}"
         </h1>
         <p className="text-sm text-gray-500">
-          {list.members.length} member{list.members.length !== 1 && "s"} already here
+          {list.members.length} member{list.members.length !== 1 && "s"} already
+          here
         </p>
       </div>
 
-      <form onSubmit={handleJoin} className="space-y-4">
+      {/* If we have a saved identity, offer quick rejoin */}
+      {savedUser && (
+        <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+          <p className="text-sm text-gray-700">
+            Join as{" "}
+            <span className="font-semibold" style={{ color: savedUser.color }}>
+              {savedUser.name}
+            </span>
+            ?
+          </p>
+          <button
+            onClick={handleRejoin}
+            disabled={joining}
+            className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {joining ? "Joining..." : "Join as " + savedUser.name}
+          </button>
+          {joinError && <p className="text-red-600 text-sm">{joinError}</p>}
+        </div>
+      )}
+
+      {/* Divider when both options are shown */}
+      {savedUser && (
+        <div className="flex items-center gap-3">
+          <div className="flex-1 border-t border-gray-200" />
+          <span className="text-xs text-gray-400">or join as someone new</span>
+          <div className="flex-1 border-t border-gray-200" />
+        </div>
+      )}
+
+      {/* New user form */}
+      <form onSubmit={handleJoinNew} className="space-y-4">
         <div>
           <label
             htmlFor="user-name"
@@ -131,7 +191,9 @@ export default function JoinPage() {
           {joining ? "Joining..." : "Join list"}
         </button>
 
-        {joinError && <p className="text-red-600 text-sm">{joinError}</p>}
+        {!savedUser && joinError && (
+          <p className="text-red-600 text-sm">{joinError}</p>
+        )}
       </form>
     </div>
   );
