@@ -21,9 +21,14 @@ client/                    # React frontend (Vite on :5173)
     health.ts, users.ts, lists.ts, items.ts, purchases.ts
   src/components/
     Layout.tsx             # Header + Outlet, mobile-first (max-w-lg)
+    AddItemForm.tsx        # Text input to add item to a list
+    ItemRow.tsx            # Item with state cycling, delete, exclusion badges
+    ExclusionModal.tsx     # Bottom-sheet modal to toggle member exclusions per item
+    ShareButton.tsx        # Copy share URL to clipboard
+    MemberList.tsx         # Colored member badges, leave button
   src/pages/
     HomePage.tsx           # Create a new list
-    ListPage.tsx           # View a list (items + members)
+    ListPage.tsx           # Main list view: grouped items, add form, members, share
     JoinPage.tsx           # Join via share link (name + color picker)
   src/main.tsx             # Entry point
   vite.config.ts           # Proxy /api/* → localhost:3001
@@ -84,6 +89,8 @@ All mounted under `/api` in `server/src/index.ts`.
 - **Client API layer** (`client/src/api/`) — typed fetch wrapper; all API calls go through this, not raw `fetch`. Throws `ApiRequestError` on non-2xx responses
 - **Client routing** — React Router with `Layout` > page pattern. Routes: `/` (home), `/list/:id`, `/join/:shareToken`
 - **User identity** — stored in `localStorage` as `"hestia-user"` (JSON User object), set during join flow
+- **List view state** — ListPage holds `ListWithDetails` in local state; child components call API then notify parent via callbacks (`onItemAdded`, `onUpdated`, `onDeleted`, etc.) to update state without re-fetching
+- **Cart state cycling** — ItemRow cycles needed→inCart→purchased→needed on click via `NEXT_STATE` map
 
 ## Conventions
 
@@ -95,7 +102,7 @@ All mounted under `/api` in `server/src/index.ts`.
 
 ## Current Status
 
-See `PLAN.md` for the full feature roadmap. Milestones 0-4 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages). Next up: Milestone 5 (list view core UI), then Milestone 6 (join flow refinement).
+See `PLAN.md` for the full feature roadmap. Milestones 0-5 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages, list view core UI). Next up: Milestone 6 (join flow — mostly done, may just need polish), then Milestone 7 (checkout + cost splitting).
 
 ## No Auth
 

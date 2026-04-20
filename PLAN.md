@@ -1,6 +1,6 @@
 # Hestia Cart — Feature Plan
 
-> Status: **Milestone 4 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
+> Status: **Milestone 5 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
 
 ---
 
@@ -60,38 +60,14 @@ All REST endpoints implemented with Zod validation, 404 handling, and tested via
 
 ---
 
-## Milestone 5 — List View (Core UI)
+## Milestone 5 — List View Core UI (DONE)
 
-The main screen of the app. This is where users spend almost all their time.
-
-### 5.1 Item list
-
-- Display items grouped or filtered by `cartState` (needed / in cart / purchased)
-- Tap to cycle state: needed → in_cart → purchased
-- Swipe or long-press to delete
-- Show who added each item
-- Show exclusion indicators (e.g., "not Carol" badge)
-
-### 5.2 Add item form
-
-- Text input + submit button at the top or bottom of the list
-- Optimistic UI: add to list immediately, reconcile with server response
-
-### 5.3 Member sidebar / drawer
-
-- Show all members with their avatar color
-- Option to leave the list
-
-### 5.4 Share button
-
-- Copy the share URL (`/join/:shareToken`) to clipboard
-- Show a toast confirmation
-
-### 5.5 Item exclusion UI
-
-- When viewing/editing an item, show checkboxes for each member
-- Checked = included (default), unchecked = excluded
-- Save exclusions via API
+- `client/src/pages/ListPage.tsx` — full rewrite: fetches list, groups items by cartState (needed/inCart/purchased), manages local state updates for all mutations
+- `client/src/components/AddItemForm.tsx` — text input + submit, disabled if no saved user identity
+- `client/src/components/ItemRow.tsx` — tap state badge to cycle (needed→inCart→purchased→needed), delete button, "split" button to open exclusion modal, shows creator name + "not X" exclusion badges
+- `client/src/components/ExclusionModal.tsx` — bottom-sheet style modal, checkbox per member (checked=included, unchecked=excluded), saves immediately per toggle
+- `client/src/components/ShareButton.tsx` — copies share URL to clipboard, shows "Link copied!" for 2s
+- `client/src/components/MemberList.tsx` — colored member badges with "(you)" indicator, "Leave" button removes current user and redirects home
 
 ---
 
