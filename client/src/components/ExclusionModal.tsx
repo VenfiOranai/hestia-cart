@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ItemWithDetails, ListMemberWithUser } from "shared";
 import { addExclusion, removeExclusion } from "../api";
+import { useToast } from "./Toast";
 
 interface Props {
   item: ItemWithDetails;
@@ -16,6 +17,7 @@ export default function ExclusionModal({
   onUpdated,
 }: Props) {
   // Track which userIds are currently excluded, starting from the item's data.
+  const toast = useToast();
   const [excludedIds, setExcludedIds] = useState<Set<number>>(
     new Set(item.exclusions.map((e) => e.userId))
   );
@@ -46,8 +48,10 @@ export default function ExclusionModal({
           exclusions: [...item.exclusions, exclusion],
         });
       }
-    } catch {
-      // M8 will add toasts
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Couldn't update exclusion",
+      );
     } finally {
       setSaving(null);
     }

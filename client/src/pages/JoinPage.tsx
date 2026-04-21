@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { addMember, createUser, getListByShareToken } from "../api";
+import { JoinPageSkeleton } from "../components/Skeleton";
 import type { ListWithDetails, User } from "shared";
 
 const COLORS = [
@@ -93,11 +94,7 @@ export default function JoinPage() {
   }
 
   if (!list) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-400">Loading...</p>
-      </div>
-    );
+    return <JoinPageSkeleton />;
   }
 
   return (
@@ -157,7 +154,7 @@ export default function JoinPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Alice"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full rounded-lg border border-gray-300 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>
 
@@ -171,7 +168,7 @@ export default function JoinPage() {
                 key={c}
                 type="button"
                 onClick={() => setColor(c)}
-                className={`w-9 h-9 rounded-full border-2 transition-all ${
+                className={`w-10 h-10 rounded-full border-2 transition-all ${
                   color === c
                     ? "border-gray-900 scale-110"
                     : "border-transparent hover:scale-105"

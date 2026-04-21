@@ -1,6 +1,6 @@
 # Hestia Cart — Feature Plan
 
-> Status: **Milestone 7 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
+> Status: **Milestone 8 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
 
 ---
 
@@ -92,33 +92,21 @@ All REST endpoints implemented with Zod validation, 404 handling, and tested via
 
 ---
 
-## Milestone 8 — Polish & UX
+## Milestone 8 — Polish & UX (DONE)
 
-### 8.1 Loading & empty states
+- `client/src/components/Toast.tsx` — lightweight toast context + `useToast` hook (success/error/info variants, auto-dismiss, bottom-center stack). `ToastProvider` wraps the app in `App.tsx`
+- `client/src/components/Skeleton.tsx` — `Skeleton`, `ListPageSkeleton`, `JoinPageSkeleton`, `MyListsSkeleton` — replace plain "Loading..." text on all pages
+- Empty-state cards with icon + helper copy on `ListPage` (no items) and `HomePage` (no lists)
+- Optimistic updates:
+  - Add item: `ListPage.handleAddItem` inserts a temp-id item immediately, reconciles with the server response on success, rolls back + toasts on error. `AddItemForm` refactored to delegate creation via `onSubmit(name)`
+  - Cart-state cycle: `ItemRow.handleCycleState` applies the next state immediately, reverts on failure
+  - Delete: `ItemRow.handleDelete` removes the row immediately, re-inserts on failure
+  - Temp-id rows render with reduced opacity and disabled actions until the server confirms
+- Toasts wired into: item add/remove errors, cart-state revert, exclusion toggle errors, share-link copy, login/logout, purchase recorded, leave-list errors
+- Mobile UX: bottom-anchored add-item input on `ListPage` (fixed on mobile, inline on sm+), 44px tap targets across buttons, bigger color swatches (40px) and larger form inputs
+- Color picker already had 8-color palette — kept and standardized in `HomePage` and `JoinPage`
 
-- Skeleton loaders while fetching
-- Empty state illustrations/messages ("No items yet — add one!")
-
-### 8.2 Optimistic updates
-
-- Item state changes (needed → in_cart) update immediately, revert on error
-- Add item appears in list before server confirms
-
-### 8.3 Toast notifications
-
-- "Item added", "Link copied", "Purchase recorded", error messages
-- Use a lightweight toast library or build a simple one with Tailwind
-
-### 8.4 Mobile UX
-
-- Bottom-anchored add-item input
-- Pull-to-refresh
-- Touch-friendly tap targets (min 44px)
-
-### 8.5 Color picker
-
-- Pre-defined palette of 8-12 colors for user avatars
-- Show as colored circles in the join flow
+Skipped for now: pull-to-refresh (browser-native behavior is sufficient; SSE in M9 will cover live updates).
 
 ---
 

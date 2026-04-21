@@ -1,31 +1,22 @@
 import { useState } from "react";
-import { createItem } from "../api";
-import type { ItemWithDetails } from "shared";
 
 interface Props {
-  listId: number;
   userId: number | null;
-  onItemAdded: (item: ItemWithDetails) => void;
+  onSubmit: (name: string) => Promise<void>;
 }
 
-export default function AddItemForm({ listId, userId, onItemAdded }: Props) {
+export default function AddItemForm({ userId, onSubmit }: Props) {
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !userId) return;
+    const trimmed = name.trim();
+    if (!trimmed || !userId) return;
+    setName("");
     setSubmitting(true);
-
     try {
-      const item = await createItem(listId, {
-        name: name.trim(),
-        createdByUserId: userId,
-      });
-      onItemAdded(item);
-      setName("");
-    } catch {
-      // Errors will be handled more gracefully in M8 (toasts).
+      await onSubmit(trimmed);
     } finally {
       setSubmitting(false);
     }
@@ -39,12 +30,12 @@ export default function AddItemForm({ listId, userId, onItemAdded }: Props) {
         onChange={(e) => setName(e.target.value)}
         placeholder={userId ? "Add an item..." : "Join the list to add items"}
         disabled={!userId}
-        className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:text-gray-400"
+        className="flex-1 rounded-lg border border-gray-300 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:text-gray-400"
       />
       <button
         type="submit"
         disabled={submitting || !name.trim() || !userId}
-        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="min-h-[44px] rounded-lg bg-indigo-600 px-5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Add
       </button>

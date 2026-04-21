@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { SplitsResponse } from "shared";
 import { getSplits } from "../api";
+import { Skeleton } from "./Skeleton";
 
 interface Props {
   listId: number;
@@ -24,8 +25,10 @@ export default function SplitsCard({ listId, refreshKey }: Props) {
 
   if (loading) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <p className="text-sm text-gray-400">Loading splits...</p>
+      <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
       </div>
     );
   }

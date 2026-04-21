@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { addMember, createList, createUser, getUserLists } from "../api";
+import { MyListsSkeleton } from "../components/Skeleton";
+import { useToast } from "../components/Toast";
 import type { ListSummary, User } from "shared";
 
 const COLORS = [
@@ -21,6 +23,7 @@ function getSavedUser(): User | null {
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const [savedUser, setSavedUser] = useState<User | null>(getSavedUser);
 
   // Login form state
@@ -62,6 +65,7 @@ export default function HomePage() {
       localStorage.setItem("hestia-user", JSON.stringify(user));
       setSavedUser(user);
       setLoginName("");
+      toast.success(`Welcome, ${user.name}`);
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : "Failed to create user");
     } finally {
@@ -72,6 +76,7 @@ export default function HomePage() {
   function handleLogout() {
     localStorage.removeItem("hestia-user");
     setSavedUser(null);
+    toast.info("Logged out");
   }
 
   async function handleCreateList(e: React.FormEvent) {
@@ -111,7 +116,7 @@ export default function HomePage() {
           </div>
           <button
             onClick={handleLogout}
-            className="text-sm text-gray-400 hover:text-gray-600"
+            className="min-h-[44px] px-3 text-sm text-gray-400 hover:text-gray-600"
           >
             Log out
           </button>
@@ -126,7 +131,7 @@ export default function HomePage() {
             value={loginName}
             onChange={(e) => setLoginName(e.target.value)}
             placeholder="Your name"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full rounded-lg border border-gray-300 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">
@@ -138,7 +143,7 @@ export default function HomePage() {
                   key={c}
                   type="button"
                   onClick={() => setLoginColor(c)}
-                  className={`w-8 h-8 rounded-full border-2 transition-all ${
+                  className={`w-10 h-10 rounded-full border-2 transition-all ${
                     loginColor === c
                       ? "border-gray-900 scale-110"
                       : "border-transparent hover:scale-105"
@@ -152,7 +157,7 @@ export default function HomePage() {
           <button
             type="submit"
             disabled={loggingIn || !loginName.trim()}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full min-h-[44px] rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loggingIn ? "Creating..." : "Log in"}
           </button>
@@ -176,12 +181,12 @@ export default function HomePage() {
             onChange={(e) => setListName(e.target.value)}
             placeholder={savedUser ? "e.g. Weekly Groceries" : "Log in first"}
             disabled={!savedUser}
-            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-400"
+            className="flex-1 rounded-lg border border-gray-300 px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-400"
           />
           <button
             type="submit"
             disabled={creating || !listName.trim() || !savedUser}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="min-h-[44px] rounded-lg bg-indigo-600 px-5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {creating ? "Creating..." : "Create"}
           </button>
@@ -194,11 +199,16 @@ export default function HomePage() {
         <div className="space-y-3">
           <h2 className="text-sm font-medium text-gray-700">My lists</h2>
           {listsLoading ? (
-            <p className="text-sm text-gray-400">Loading...</p>
+            <MyListsSkeleton />
           ) : myLists.length === 0 ? (
-            <p className="text-sm text-gray-400">
-              No lists yet. Create one or join via a share link.
-            </p>
+            <div className="rounded-lg border-2 border-dashed border-gray-200 bg-white px-4 py-6 text-center">
+              <p className="text-sm font-medium text-gray-700">
+                No lists yet
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                Create one above, or open a share link to join.
+              </p>
+            </div>
           ) : (
             <ul className="space-y-2">
               {myLists.map((list) => (

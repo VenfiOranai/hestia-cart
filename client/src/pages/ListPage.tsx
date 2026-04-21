@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getList } from "../api";
+import { createItem, getList } from "../api";
 import { CartState } from "shared";
 import type { ItemWithDetails, ListWithDetails, PurchaseWithDetails, User } from "shared";
 import AddItemForm from "../components/AddItemForm";
@@ -10,6 +10,8 @@ import ShareButton from "../components/ShareButton";
 import MemberList from "../components/MemberList";
 import CheckoutModal from "../components/CheckoutModal";
 import SplitsCard from "../components/SplitsCard";
+import { ListPageSkeleton } from "../components/Skeleton";
+import { useToast } from "../components/Toast";
 
 /** Read the saved user from localStorage (set during join flow). */
 function getSavedUser(): User | null {
@@ -20,6 +22,7 @@ function getSavedUser(): User | null {
 export default function ListPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const toast = useToast();
   const [list, setList] = useState<ListWithDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [exclusionItem, setExclusionItem] = useState<ItemWithDetails | null>(null);
@@ -45,11 +48,7 @@ export default function ListPage() {
   }
 
   if (!list) {
-    return (
-      <div className="text-center py-12">
-        <p className="text-gray-400">Loading list...</p>
-      </div>
-    );
+    return <ListPageSkeleton />;
   }
 
   // Group items by cartState
@@ -57,33 +56,53 @@ export default function ListPage() {
   const inCart = list.items.filter((i) => i.cartState === CartState.InCart);
   const purchased = list.items.filter((i) => i.cartState === CartState.Purchased);
 
-  function handleItemAdded(item: ItemWithDetails) {
-    setList((prev) =>
-      prev ? { ...prev, items: [...prev.items, item] } : prev
-    );
-  }
-
-  function handleItemUpdated(updated: ItemWithDetails) {
-    setList((prev) =>
-      prev
-        ? {
-            ...prev,
-            items: prev.items.map((i) => (i.id === updated.id ? updated : i)),
-          }
-        : prev
-    );
-    // Also update the exclusion modal if it's showing this item
-    if (exclusionItem?.id === updated.id) {
+  /** Upsert an item into the list (insert if missing, replace if present). */
+  function handleItemUpserted(updated: ItemWithDetails, replaceId?: number) {
+    setList((prev) => {
+      if (!prev) return prev;
+      const lookupId = replaceId ?? updated.id;
+      const exists = prev.items.some((i) => i.id === lookupId);
+      const items = exists
+        ? prev.items.map((i) => (i.id === lookupId ? updated : i))
+        : [...prev.items, updated];
+      return { ...prev, items };
+    });
+    if (exclusionItem && exclusionItem.id === (replaceId ?? updated.id)) {
       setExclusionItem(updated);
     }
   }
 
   function handleItemDeleted(itemId: number) {
     setList((prev) =>
-      prev
-        ? { ...prev, items: prev.items.filter((i) => i.id !== itemId) }
-        : prev
+      prev ? { ...prev, items: prev.items.filter((i) => i.id !== itemId) } : prev,
     );
+  }
+
+  /** Optimistically add an item, reconcile with the server response. */
+  async function handleAddItem(name: string) {
+    if (!currentUser || !currentUserId) return;
+    const tempId = -Date.now();
+    const optimistic: ItemWithDetails = {
+      id: tempId,
+      listId: list!.id,
+      name,
+      cartState: CartState.Needed,
+      createdByUserId: currentUserId,
+      createdAt: new Date().toISOString(),
+      exclusions: [],
+      createdBy: currentUser,
+    };
+    handleItemUpserted(optimistic);
+    try {
+      const real = await createItem(list!.id, {
+        name,
+        createdByUserId: currentUserId,
+      });
+      handleItemUpserted(real, tempId);
+    } catch (err) {
+      handleItemDeleted(tempId);
+      toast.error(err instanceof Error ? err.message : "Couldn't add item");
+    }
   }
 
   function handleMemberRemoved(userId: number) {
@@ -97,13 +116,14 @@ export default function ListPage() {
             ...prev,
             members: prev.members.filter((m) => m.userId !== userId),
           }
-        : prev
+        : prev,
     );
   }
 
   function handlePurchaseCreated(_purchase: PurchaseWithDetails) {
     // Bump the key so SplitsCard refetches
     setSplitsRefreshKey((k) => k + 1);
+    toast.success("Purchase recorded");
   }
 
   function renderGroup(label: string, items: ItemWithDetails[]) {
@@ -119,7 +139,7 @@ export default function ListPage() {
               key={item.id}
               item={item}
               members={list!.members}
-              onUpdated={handleItemUpdated}
+              onUpdated={handleItemUpserted}
               onDeleted={handleItemDeleted}
               onExclusionClick={setExclusionItem}
             />
@@ -130,7 +150,7 @@ export default function ListPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 sm:pb-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -143,18 +163,17 @@ export default function ListPage() {
         <ShareButton shareToken={list.shareToken} />
       </div>
 
-      {/* Add item */}
-      <AddItemForm
-        listId={list.id}
-        userId={currentUserId}
-        onItemAdded={handleItemAdded}
-      />
-
       {/* Items grouped by state */}
       {list.items.length === 0 ? (
-        <p className="text-gray-400 text-sm text-center py-8">
-          No items yet. Add one to get started.
-        </p>
+        <div className="rounded-lg border-2 border-dashed border-gray-200 bg-white py-10 px-4 text-center">
+          <p className="text-3xl mb-2">🛒</p>
+          <p className="text-sm font-medium text-gray-700">No items yet</p>
+          <p className="text-xs text-gray-400 mt-1">
+            {currentUserId
+              ? "Add your first item below to get started."
+              : "Join the list to add items."}
+          </p>
+        </div>
       ) : (
         <div className="space-y-4">
           {renderGroup("Needed", needed)}
@@ -167,7 +186,7 @@ export default function ListPage() {
       {currentUserId && list.items.length > 0 && (
         <button
           onClick={() => setShowCheckout(true)}
-          className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+          className="w-full min-h-[44px] rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
         >
           Record Purchase
         </button>
@@ -184,13 +203,20 @@ export default function ListPage() {
         onMemberRemoved={handleMemberRemoved}
       />
 
+      {/* Bottom-anchored add-item input (mobile-friendly) */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
+        <div className="mx-auto w-full max-w-lg">
+          <AddItemForm userId={currentUserId} onSubmit={handleAddItem} />
+        </div>
+      </div>
+
       {/* Exclusion modal */}
       {exclusionItem && (
         <ExclusionModal
           item={exclusionItem}
           members={list.members}
           onClose={() => setExclusionItem(null)}
-          onUpdated={handleItemUpdated}
+          onUpdated={(item) => handleItemUpserted(item)}
         />
       )}
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CartState } from "shared";
 import type { ItemWithDetails, ListMemberWithUser } from "shared";
 import { updateItem, deleteItem } from "../api";
+import { useToast } from "./Toast";
 
 /** Cycle through cart states in order. */
 const NEXT_STATE: Record<string, CartState> = {
@@ -31,26 +32,37 @@ export default function ItemRow({
   onDeleted,
   onExclusionClick,
 }: Props) {
+  const toast = useToast();
   const [deleting, setDeleting] = useState(false);
   const style = STATE_STYLES[item.cartState] ?? STATE_STYLES[CartState.Needed];
+  const pending = item.id < 0;
 
   async function handleCycleState() {
+    if (pending) return;
     const next = NEXT_STATE[item.cartState];
     if (!next) return;
+    const snapshot = item;
+    onUpdated({ ...item, cartState: next });
     try {
       const updated = await updateItem(item.id, { cartState: next });
       onUpdated(updated);
-    } catch {
-      // M8 will add toasts for errors
+    } catch (err) {
+      onUpdated(snapshot);
+      toast.error(err instanceof Error ? err.message : "Couldn't update item");
     }
   }
 
   async function handleDelete() {
+    if (pending) return;
+    const snapshot = item;
     setDeleting(true);
+    onDeleted(item.id);
     try {
       await deleteItem(item.id);
-      onDeleted(item.id);
-    } catch {
+      toast.success("Item removed");
+    } catch (err) {
+      onUpdated(snapshot);
+      toast.error(err instanceof Error ? err.message : "Couldn't remove item");
       setDeleting(false);
     }
   }
@@ -61,11 +73,16 @@ export default function ItemRow({
     .filter(Boolean);
 
   return (
-    <li className="px-4 py-3 flex items-center gap-3">
+    <li
+      className={`px-3 py-3 flex items-center gap-3 ${
+        pending ? "opacity-60" : ""
+      } ${deleting ? "opacity-40" : ""}`}
+    >
       {/* State toggle button */}
       <button
         onClick={handleCycleState}
-        className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${style.bg} ${style.text}`}
+        disabled={pending || deleting}
+        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium min-h-[32px] ${style.bg} ${style.text} disabled:cursor-not-allowed`}
         title={`Click to change state (currently: ${style.label})`}
       >
         {style.label}
@@ -100,15 +117,16 @@ export default function ItemRow({
       {/* Actions */}
       <button
         onClick={() => onExclusionClick(item)}
-        className="shrink-0 text-gray-400 hover:text-indigo-600 text-xs"
+        disabled={pending}
+        className="shrink-0 min-h-[44px] min-w-[44px] px-2 text-gray-400 hover:text-indigo-600 text-xs disabled:opacity-50"
         title="Edit exclusions"
       >
         split
       </button>
       <button
         onClick={handleDelete}
-        disabled={deleting}
-        className="shrink-0 text-gray-400 hover:text-red-600 text-sm disabled:opacity-50"
+        disabled={deleting || pending}
+        className="shrink-0 min-h-[44px] min-w-[44px] text-gray-400 hover:text-red-600 text-xl leading-none disabled:opacity-50"
         title="Delete item"
       >
         &times;

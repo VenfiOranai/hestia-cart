@@ -21,13 +21,15 @@ client/                    # React frontend (Vite on :5173)
     health.ts, users.ts, lists.ts, items.ts, purchases.ts
   src/components/
     Layout.tsx             # Header + Outlet, mobile-first (max-w-lg)
-    AddItemForm.tsx        # Text input to add item to a list
-    ItemRow.tsx            # Item with state cycling, delete, exclusion badges
+    AddItemForm.tsx        # Text input to add item; delegates creation via onSubmit(name)
+    ItemRow.tsx            # Item with state cycling, delete, exclusion badges; optimistic updates
     ExclusionModal.tsx     # Bottom-sheet modal to toggle member exclusions per item
     ShareButton.tsx        # Copy share URL to clipboard
     MemberList.tsx         # Colored member badges, leave button
     CheckoutModal.tsx      # Record a purchase: select items, enter prices, pick payer
     SplitsCard.tsx         # Display who owes whom after purchases are recorded
+    Toast.tsx              # ToastProvider + useToast hook (success/error/info, auto-dismiss)
+    Skeleton.tsx           # Skeleton + page skeletons (ListPageSkeleton, JoinPageSkeleton, MyListsSkeleton)
   src/pages/
     HomePage.tsx           # Create a new list
     ListPage.tsx           # Main list view: grouped items, add form, members, share
@@ -92,8 +94,11 @@ All mounted under `/api` in `server/src/index.ts`.
 - **Client routing** — React Router with `Layout` > page pattern. Routes: `/` (home), `/list/:id`, `/join/:shareToken`
 - **User identity** — stored in `localStorage` as `"hestia-user"` (JSON User object), set during join flow. Read via `getSavedUser()` helper in pages
 - **Join flow** — JoinPage handles 3 cases: already-a-member (auto-redirect), returning user (quick rejoin), new user (full form). HomePage auto-adds creator as member
-- **List view state** — ListPage holds `ListWithDetails` in local state; child components call API then notify parent via callbacks (`onItemAdded`, `onUpdated`, `onDeleted`, etc.) to update state without re-fetching
+- **List view state** — ListPage holds `ListWithDetails` in local state; child components call API then notify parent via callbacks (`onUpdated` upserts, `onDeleted` removes) to update state without re-fetching
 - **Cart state cycling** — ItemRow cycles needed→inCart→purchased→needed on click via `NEXT_STATE` map
+- **Optimistic updates** — Add item (temp negative id, reconciled on server response), cart-state cycle, and item delete all apply locally first and roll back + toast on error. Items with `id < 0` are pending and render dimmed with disabled actions
+- **Toasts** — Use `useToast()` from `components/Toast.tsx` for transient feedback (errors, confirmations). App is wrapped in `<ToastProvider>` in `App.tsx`. Don't throw from callbacks passed to forms — handle + toast in the parent
+- **Loading states** — Use `Skeleton` components instead of plain "Loading..." text; empty states use dashed-border cards with an icon + helper copy
 
 ## Conventions
 
@@ -105,7 +110,7 @@ All mounted under `/api` in `server/src/index.ts`.
 
 ## Current Status
 
-See `PLAN.md` for the full feature roadmap. Milestones 0-7 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages, list view core UI, join flow, checkout + cost splitting). Next up: Milestone 8 (polish & UX).
+See `PLAN.md` for the full feature roadmap. Milestones 0-8 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages, list view core UI, join flow, checkout + cost splitting, polish & UX). Next up: Milestone 9 (real-time sync via SSE).
 
 ## No Auth
 
