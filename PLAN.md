@@ -106,7 +106,7 @@ All REST endpoints implemented with Zod validation, 404 handling, and tested via
 - Mobile UX: bottom-anchored add-item input on `ListPage` (fixed on mobile, inline on sm+), 44px tap targets across buttons, bigger color swatches (40px) and larger form inputs
 - Color picker already had 8-color palette — kept and standardized in `HomePage` and `JoinPage`
 
-Skipped for now: pull-to-refresh (browser-native behavior is sufficient; SSE in M9 will cover live updates).
+Skipped for now: pull-to-refresh (browser-native behavior is sufficient; WebSockets in M9 will cover live updates).
 
 ---
 
@@ -114,29 +114,40 @@ Skipped for now: pull-to-refresh (browser-native behavior is sufficient; SSE in 
 
 So multiple people shopping together see updates live.
 
-### 9.1 Server-Sent Events (SSE)
+### 9.1 WebSocket server
 
-SSE is simpler than WebSockets and sufficient for this use case (server → client push).
+Use `ws` (lightweight, Express-friendly) attached to the same HTTP server. Bidirectional channel — lets us add client-initiated messages later (e.g. presence, typing indicators) without switching transports.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/lists/:listId/events` | SSE stream for a list |
+- Install `ws` (+ `@types/ws`)
+- Attach a `WebSocketServer` to the Node HTTP server in `server/src/index.ts` (share the port with Express)
+- Connection URL: `ws://host/ws?listId=:listId` — validate the list exists on upgrade, close with 1008 otherwise
+- Track connections in an in-memory `Map<listId, Set<WebSocket>>`; remove on `close`
 
-Events to broadcast:
-- `item:added`, `item:updated`, `item:deleted`
-- `member:joined`, `member:left`
-- `purchase:created`
+### 9.2 Broadcasting from mutations
 
-### 9.2 Client integration
+After each successful write in the route handlers, broadcast a JSON event to everyone subscribed to that list:
 
-- Open an EventSource connection when viewing a list
-- On event, refetch the affected data (or apply the delta directly)
-- Reconnect on disconnect
+```
+{ type: "<event-name>", payload: <resource> }
+```
 
-### 9.3 Heartbeat
+Event names: `item:added`, `item:updated`, `item:deleted`, `member:joined`, `member:left`, `purchase:created`.
 
-- Server sends a comment (`: ping`) every 30s to keep the connection alive
-- Client reconnects if no data received in 60s
+- Add a `broadcast(listId, event)` helper in `server/src/ws.ts`
+- Call it from `routes/items.ts`, `routes/lists.ts` (members), `routes/purchases.ts` after the DB write succeeds
+- The origin client echoes too — client dedupes by resource id (already applied optimistically)
+
+### 9.3 Client integration
+
+- `client/src/hooks/useListSocket.ts` — opens a `WebSocket` on mount, closes on unmount, calls a typed `onEvent` callback
+- `ListPage` wires socket events into the same upsert/delete/member handlers it already uses for optimistic updates
+- Apply deltas directly — no full refetch
+- Reconnect with exponential backoff (1s → 30s cap) on `close`/`error`; refetch the list once on successful reconnect to catch missed events
+
+### 9.4 Heartbeat
+
+- Server sends a WebSocket `ping` frame every 30s; terminates the socket if no `pong` within 10s
+- Client relies on the browser's automatic pong response; treats close as a reconnect signal
 
 ---
 
