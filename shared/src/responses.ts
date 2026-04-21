@@ -36,6 +36,19 @@ export interface PurchaseWithDetails extends Purchase {
   payer: User;
 }
 
+/** A single debt between two users. */
+export interface DebtEntry {
+  from: User;
+  to: User;
+  amountCents: number;
+}
+
+/** Response from GET /api/lists/:listId/splits. */
+export interface SplitsResponse {
+  debts: DebtEntry[];
+  totalCents: number;
+}
+
 /** Error response shape returned by the server. */
 export interface ApiError {
   error: string;

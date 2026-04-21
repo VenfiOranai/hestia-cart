@@ -19,4 +19,4 @@ export {
   addExclusion,
   removeExclusion,
 } from "./items";
-export { createPurchase, getPurchases } from "./purchases";
+export { createPurchase, getPurchases, getSplits } from "./purchases";

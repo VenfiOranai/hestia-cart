@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getList } from "../api";
 import { CartState } from "shared";
-import type { ItemWithDetails, ListWithDetails, User } from "shared";
+import type { ItemWithDetails, ListWithDetails, PurchaseWithDetails, User } from "shared";
 import AddItemForm from "../components/AddItemForm";
 import ItemRow from "../components/ItemRow";
 import ExclusionModal from "../components/ExclusionModal";
 import ShareButton from "../components/ShareButton";
 import MemberList from "../components/MemberList";
+import CheckoutModal from "../components/CheckoutModal";
+import SplitsCard from "../components/SplitsCard";
 
 /** Read the saved user from localStorage (set during join flow). */
 function getSavedUser(): User | null {
@@ -21,6 +23,8 @@ export default function ListPage() {
   const [list, setList] = useState<ListWithDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [exclusionItem, setExclusionItem] = useState<ItemWithDetails | null>(null);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [splitsRefreshKey, setSplitsRefreshKey] = useState(0);
 
   const currentUser = getSavedUser();
   const currentUserId = currentUser?.id ?? null;
@@ -97,6 +101,11 @@ export default function ListPage() {
     );
   }
 
+  function handlePurchaseCreated(_purchase: PurchaseWithDetails) {
+    // Bump the key so SplitsCard refetches
+    setSplitsRefreshKey((k) => k + 1);
+  }
+
   function renderGroup(label: string, items: ItemWithDetails[]) {
     if (items.length === 0) return null;
     return (
@@ -154,6 +163,19 @@ export default function ListPage() {
         </div>
       )}
 
+      {/* Record purchase button */}
+      {currentUserId && list.items.length > 0 && (
+        <button
+          onClick={() => setShowCheckout(true)}
+          className="w-full rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+        >
+          Record Purchase
+        </button>
+      )}
+
+      {/* Cost splits */}
+      <SplitsCard listId={list.id} refreshKey={splitsRefreshKey} />
+
       {/* Members */}
       <MemberList
         members={list.members}
@@ -169,6 +191,18 @@ export default function ListPage() {
           members={list.members}
           onClose={() => setExclusionItem(null)}
           onUpdated={handleItemUpdated}
+        />
+      )}
+
+      {/* Checkout modal */}
+      {showCheckout && currentUserId && (
+        <CheckoutModal
+          listId={list.id}
+          items={list.items}
+          members={list.members}
+          currentUserId={currentUserId}
+          onClose={() => setShowCheckout(false)}
+          onPurchaseCreated={handlePurchaseCreated}
         />
       )}
     </div>

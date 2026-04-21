@@ -26,6 +26,8 @@ client/                    # React frontend (Vite on :5173)
     ExclusionModal.tsx     # Bottom-sheet modal to toggle member exclusions per item
     ShareButton.tsx        # Copy share URL to clipboard
     MemberList.tsx         # Colored member badges, leave button
+    CheckoutModal.tsx      # Record a purchase: select items, enter prices, pick payer
+    SplitsCard.tsx         # Display who owes whom after purchases are recorded
   src/pages/
     HomePage.tsx           # Create a new list
     ListPage.tsx           # Main list view: grouped items, add form, members, share
@@ -44,7 +46,7 @@ server/                    # Express backend (:3001)
 shared/                    # Shared TypeScript types
   src/index.ts             # ListStatus enum, CartState enum, HealthResponse, barrel re-exports
   src/models.ts            # Base DB model interfaces (User, List, Item, etc.)
-  src/responses.ts         # Nested response shapes (ListWithDetails, etc.) + ApiError
+  src/responses.ts         # Nested response shapes (ListWithDetails, etc.) + DebtEntry, SplitsResponse, ApiError
   src/requests.ts          # Request body types (CreateUserBody, etc.)
 ```
 
@@ -77,7 +79,7 @@ All mounted under `/api` in `server/src/index.ts`.
 - **Members**: GET/POST /lists/:listId/members, DELETE /lists/:listId/members/:userId
 - **Items**: POST /lists/:listId/items, GET /lists/:listId/items, PATCH /items/:id, DELETE /items/:id
 - **Exclusions**: POST /items/:itemId/exclusions, DELETE /items/:itemId/exclusions/:userId
-- **Purchases**: POST /lists/:listId/purchases (nested create), GET /lists/:listId/purchases
+- **Purchases**: POST /lists/:listId/purchases (nested create), GET /lists/:listId/purchases, GET /lists/:listId/splits (cost splitting)
 
 ## Key Patterns
 
@@ -103,7 +105,7 @@ All mounted under `/api` in `server/src/index.ts`.
 
 ## Current Status
 
-See `PLAN.md` for the full feature roadmap. Milestones 0-6 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages, list view core UI, join flow). Next up: Milestone 7 (checkout + cost splitting).
+See `PLAN.md` for the full feature roadmap. Milestones 0-7 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages, list view core UI, join flow, checkout + cost splitting). Next up: Milestone 8 (polish & UX).
 
 ## No Auth
 

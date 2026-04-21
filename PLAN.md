@@ -1,6 +1,6 @@
 # Hestia Cart — Feature Plan
 
-> Status: **Milestone 6 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
+> Status: **Milestone 7 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
 
 ---
 
@@ -81,35 +81,14 @@ All REST endpoints implemented with Zod validation, 404 handling, and tested via
 
 ---
 
-## Milestone 7 — Checkout & Cost Splitting
+## Milestone 7 — Checkout & Cost Splitting (DONE)
 
-### 7.1 Checkout flow
-
-- Button: "Record purchase" on the list view
-- Select which items were purchased (pre-select items with `cartState: purchased`)
-- Enter price for each item
-- Confirm → `POST /api/lists/:listId/purchases`
-
-### 7.2 Split calculation endpoint
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/lists/:listId/splits` | Calculate who owes whom |
-
-**Splitting logic:**
-
-For each purchase item:
-1. Find all list members
-2. Subtract excluded users (from ItemExclusion)
-3. Split `priceCents` equally among remaining users (integer division, remainder goes to first user)
-4. The payer paid for everyone — each non-payer's share is what they owe the payer
-
-Aggregate across all purchases to get net balances. Simplify debts (A owes B $5, B owes A $3 → A owes B $2).
-
-### 7.3 Splits display
-
-- Show a summary card: "Alice owes Bob ₪12.50" etc.
-- Show per-item breakdown on tap
+- `GET /api/lists/:listId/splits` — calculates who owes whom, respecting item exclusions; integer-cent math with fair remainder distribution; simplifies mutual debts
+- `shared/src/responses.ts` — added `DebtEntry` and `SplitsResponse` types
+- `client/src/api/purchases.ts` — added `getSplits()` client function
+- `client/src/components/CheckoutModal.tsx` — modal to record a purchase: select payer, check items (pre-selects "purchased" items), enter price per item, submit via `createPurchase()`
+- `client/src/components/SplitsCard.tsx` — displays debts ("Alice owes Bob $12.50") with colored name badges and running total; auto-refetches when a new purchase is recorded
+- `client/src/pages/ListPage.tsx` — "Record Purchase" button + CheckoutModal + SplitsCard integrated
 
 ---
 
