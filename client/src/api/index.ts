@@ -1,6 +1,6 @@
 export { ApiRequestError } from "./client";
 export { getHealth } from "./health";
-export { createUser, getUser } from "./users";
+export { createUser, getUser, getUserLists } from "./users";
 export {
   createList,
   getList,

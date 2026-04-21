@@ -1,4 +1,4 @@
-import type { CreateUserBody, User } from "shared";
+import type { CreateUserBody, ListSummary, User } from "shared";
 import { request } from "./client";
 
 export function createUser(data: CreateUserBody) {
@@ -10,4 +10,8 @@ export function createUser(data: CreateUserBody) {
 
 export function getUser(id: number) {
   return request<User>(`/api/users/${id}`);
+}
+
+export function getUserLists(userId: number) {
+  return request<ListSummary[]>(`/api/users/${userId}/lists`);
 }

@@ -49,6 +49,12 @@ export interface SplitsResponse {
   totalCents: number;
 }
 
+/** A list summary with counts, returned by GET /api/users/:id/lists. */
+export interface ListSummary extends List {
+  memberCount: number;
+  itemCount: number;
+}
+
 /** Error response shape returned by the server. */
 export interface ApiError {
   error: string;

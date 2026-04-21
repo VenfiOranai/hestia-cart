@@ -20,4 +20,29 @@ router.get("/users/:id", async (req, res) => {
   res.json(user);
 });
 
+// GET /api/users/:id/lists — get all lists this user belongs to
+router.get("/users/:id/lists", async (req, res) => {
+  const userId = Number(req.params.id);
+
+  const memberships = await prisma.listMember.findMany({
+    where: { userId },
+    include: {
+      list: {
+        include: {
+          _count: { select: { members: true, items: true } },
+        },
+      },
+    },
+    orderBy: { list: { updatedAt: "desc" } },
+  });
+
+  const lists = memberships.map((m) => ({
+    ...m.list,
+    memberCount: m.list._count.members,
+    itemCount: m.list._count.items,
+  }));
+
+  res.json(lists);
+});
+
 export default router;
