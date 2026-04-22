@@ -1,6 +1,6 @@
 # Hestia Cart — Feature Plan
 
-> Status: **Milestone 9 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
+> Status: **Milestone 10 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
 
 ---
 
@@ -130,28 +130,29 @@ Notes:
 
 ---
 
-## Milestone 10 — Hardening
+## Milestone 10 — Hardening (DONE)
 
 ### 10.1 Input validation
 
-- Zod schemas already defined in `server/src/schemas/` — wire into every POST/PATCH handler
-- Sanitize item names (trim whitespace, cap length) — already handled by Zod `.trim().max()`
-- Validate hex color format — already handled by Zod regex
+- `server/src/schemas/params.ts` — new `parseIdParam(value, name?)` helper that coerces path segments to positive integers via Zod; throws a `ZodError` (→ 400 via error handler) instead of letting `NaN` reach Prisma. All `Number(req.params.*)` sites in `routes/users.ts`, `routes/lists.ts`, `routes/items.ts`, `routes/purchases.ts` now use it
+- `server/src/schemas/lists.ts` — added `addMemberSchema` (`{ userId: positive int }`) and wired it into `POST /lists/:listId/members`, which previously accepted an untyped body
+- Body schemas already cover trim/length/hex-color via existing Zod rules — verified, no changes needed
 
 ### 10.2 Rate limiting
 
-- Basic rate limiting on list creation and user creation to prevent abuse
-- Use `express-rate-limit`
+- `express-rate-limit` added to the server workspace
+- `server/src/middleware/rateLimit.ts` — `createResourceLimiter` (10 requests / minute / IP, draft-7 `RateLimit-*` headers, JSON 429 body)
+- Applied to the two endpoints that create rows hardest to garbage-collect: `POST /api/users` and `POST /api/lists`. Mutations on existing resources are intentionally not limited
 
 ### 10.3 Error boundaries
 
-- React error boundary around the app to catch rendering crashes
-- Fallback UI with "something went wrong" + retry button
+- `client/src/components/ErrorBoundary.tsx` — class component using `getDerivedStateFromError`; fallback card with "Try again" (resets state) and "Reload" (hard refresh) buttons, error message in a scrollable pre
+- `App.tsx` wraps the entire tree in `<ErrorBoundary>` so render crashes below show a card instead of a blank page
 
 ### 10.4 Database indexes review
 
-- Indexes already exist on all FK columns (done in schema)
-- Add any composite indexes needed after profiling queries
+- Confirmed: all FK columns already have indexes (`ListMember.userId` / `.listId`, `Item.listId` / `.createdByUserId`, `ItemExclusion.itemId` / `.userId`, `Purchase.listId` / `.payerUserId`, `PurchaseItem.purchaseId` / `.itemId`). `List.shareToken` is uniquely indexed, `ListMember` has a composite unique on `[userId, listId]`
+- No composite `[listId, createdAt]` indexes added — the common `findMany where listId orderBy createdAt` queries are cheap at current scale and SQLite/Postgres both handle them with the existing single-column FK index. Defer until real profiling warrants it
 
 ---
 

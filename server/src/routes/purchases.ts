@@ -1,6 +1,6 @@
 import { Router } from "express";
 import prisma from "../db.js";
-import { createPurchaseSchema } from "../schemas/index.js";
+import { createPurchaseSchema, parseIdParam } from "../schemas/index.js";
 import { NotFoundError } from "../middleware/errorHandler.js";
 import { broadcast } from "../ws.js";
 
@@ -8,7 +8,7 @@ const router = Router();
 
 // POST /api/lists/:listId/purchases — create a purchase with items
 router.post("/lists/:listId/purchases", async (req, res) => {
-  const listId = Number(req.params.listId);
+  const listId = parseIdParam(req.params.listId, "listId");
   const { payerUserId, items } = createPurchaseSchema.parse(req.body);
 
   const purchase = await prisma.purchase.create({
@@ -31,7 +31,7 @@ router.post("/lists/:listId/purchases", async (req, res) => {
 
 // GET /api/lists/:listId/purchases — list all purchases for a list
 router.get("/lists/:listId/purchases", async (req, res) => {
-  const listId = Number(req.params.listId);
+  const listId = parseIdParam(req.params.listId, "listId");
   const purchases = await prisma.purchase.findMany({
     where: { listId },
     include: {
@@ -54,7 +54,7 @@ router.get("/lists/:listId/purchases", async (req, res) => {
 // Then aggregate across all purchases and simplify debts
 // (if A owes B $5 and B owes A $3, net result is A owes B $2).
 router.get("/lists/:listId/splits", async (req, res) => {
-  const listId = Number(req.params.listId);
+  const listId = parseIdParam(req.params.listId, "listId");
 
   const list = await prisma.list.findUnique({
     where: { id: listId },

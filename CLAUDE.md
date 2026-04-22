@@ -30,6 +30,7 @@ client/                    # React frontend (Vite on :5173)
     SplitsCard.tsx         # Display who owes whom after purchases are recorded
     Toast.tsx              # ToastProvider + useToast hook (success/error/info, auto-dismiss)
     Skeleton.tsx           # Skeleton + page skeletons (ListPageSkeleton, JoinPageSkeleton, MyListsSkeleton)
+    ErrorBoundary.tsx      # Top-level React error boundary with Try again / Reload fallback
   src/hooks/
     useListSocket.ts       # WebSocket subscription to a list's live event stream (typed onEvent + onReconnect, exponential backoff)
   src/pages/
@@ -42,8 +43,8 @@ server/                    # Express backend (:3001)
   src/index.ts             # App setup, middleware, route mounting; wraps Express in a raw http.Server so WS shares the port
   src/db.ts                # Prisma client singleton
   src/ws.ts                # WebSocketServer (noServer mode) + broadcast(listId, event) helper + heartbeat
-  src/schemas/             # Zod validation schemas (one file per resource)
-  src/middleware/           # errorHandler.ts (ZodError→400, NotFoundError→404, else→500)
+  src/schemas/             # Zod validation schemas (one file per resource + params.ts for parseIdParam)
+  src/middleware/           # errorHandler.ts (ZodError→400, NotFoundError→404, else→500); rateLimit.ts (createResourceLimiter)
   src/routes/              # Express routers (users, lists, items, purchases); mutations call broadcast() after DB writes
   prisma/schema.prisma     # Database schema (7 models)
   prisma/seed.ts           # Test data seeder
@@ -99,6 +100,8 @@ All mounted under `/api` in `server/src/index.ts`.
 
 - **Express 5** auto-catches async errors — no try/catch wrappers needed in route handlers
 - **Zod schemas** in `server/src/schemas/` validate all request bodies; errors forwarded to error handler
+- **Path param parsing** — Use `parseIdParam(req.params.foo, "foo")` from `schemas/params.ts` rather than `Number(req.params.foo)`. It coerces via Zod, throws `ZodError` (→ 400) on non-positive-integer input, and keeps `NaN` out of Prisma
+- **Rate limiting** — `createResourceLimiter` from `middleware/rateLimit.ts` (10/min/IP) wraps the two creation endpoints that are easiest to abuse: `POST /api/users` and `POST /api/lists`. Mutations on existing rows aren't limited
 - **NotFoundError** class (from `middleware/errorHandler.ts`) — throw from route handlers for 404s
 - **Prisma nested creates** for purchases (purchase + items in one implicit transaction)
 - **Shared package** uses `"type": "module"` and `"exports"` field for ESM compatibility with tsx
@@ -113,6 +116,7 @@ All mounted under `/api` in `server/src/index.ts`.
 - **Loading states** — Use `Skeleton` components instead of plain "Loading..." text; empty states use dashed-border cards with an icon + helper copy
 - **Realtime broadcast** — Every mutation route calls `broadcast(listId, event)` from `server/src/ws.ts` after its DB write; `ListPage` consumes events via `useListSocket` and reuses functional `setList` updaters to stay consistent with optimistic updates. Broadcast payload is typed `unknown` because Prisma hands us `Date`s but the wire shape (from `shared/src/events.ts`) uses ISO strings — `JSON.stringify` handles the conversion
 - **Socket reconnect** — `useListSocket` uses exponential backoff (1s → 30s) and fires `onReconnect` after any non-initial open; `ListPage` handles it by refetching the full list once so any events missed during disconnect are applied
+- **Error boundary** — `components/ErrorBoundary.tsx` wraps the whole tree in `App.tsx`; catches rendering errors only (not event-handler / async errors — those need local try/catch + toast). Fallback has "Try again" (reset state) and "Reload" (hard refresh)
 
 ## Conventions
 
@@ -124,7 +128,7 @@ All mounted under `/api` in `server/src/index.ts`.
 
 ## Current Status
 
-See `PLAN.md` for the full feature roadmap. Milestones 0-9 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages, list view core UI, join flow, checkout + cost splitting, polish & UX, realtime sync via WebSockets). Next up: Milestone 10 (hardening — rate limiting, error boundaries, index review).
+See `PLAN.md` for the full feature roadmap. Milestones 0-10 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages, list view core UI, join flow, checkout + cost splitting, polish & UX, realtime sync via WebSockets, hardening — strict path-param parsing, rate limiting, error boundary, index review). Next up: Milestone 11 (testing — server integration, component, E2E).
 
 ## No Auth
 

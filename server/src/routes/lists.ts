@@ -4,15 +4,18 @@ import prisma from "../db.js";
 import {
   createListSchema,
   updateListSchema,
+  addMemberSchema,
+  parseIdParam,
 } from "../schemas/index.js";
 import { NotFoundError } from "../middleware/errorHandler.js";
+import { createResourceLimiter } from "../middleware/rateLimit.js";
 import { broadcast } from "../ws.js";
 
 const router = Router();
 
 // POST /api/lists — create a list
 // Requires `creatorUserId` in the body so we can auto-add them as a member.
-router.post("/lists", async (req, res) => {
+router.post("/lists", createResourceLimiter, async (req, res) => {
   const { name } = createListSchema.parse(req.body);
 
   const list = await prisma.list.create({
@@ -41,7 +44,7 @@ router.get("/lists/join/:shareToken", async (req, res) => {
 
 // GET /api/lists/:id — get a list with members and items
 router.get("/lists/:id", async (req, res) => {
-  const id = Number(req.params.id);
+  const id = parseIdParam(req.params.id);
   const list = await prisma.list.findUnique({
     where: { id },
     include: {
@@ -58,7 +61,7 @@ router.get("/lists/:id", async (req, res) => {
 
 // PATCH /api/lists/:id — update list name or status
 router.patch("/lists/:id", async (req, res) => {
-  const id = Number(req.params.id);
+  const id = parseIdParam(req.params.id);
   const data = updateListSchema.parse(req.body);
 
   // Ensure the list exists before updating.
@@ -71,7 +74,7 @@ router.patch("/lists/:id", async (req, res) => {
 
 // DELETE /api/lists/:id — delete a list (cascades)
 router.delete("/lists/:id", async (req, res) => {
-  const id = Number(req.params.id);
+  const id = parseIdParam(req.params.id);
   const existing = await prisma.list.findUnique({ where: { id } });
   if (!existing) throw new NotFoundError("List", id);
 
@@ -83,7 +86,7 @@ router.delete("/lists/:id", async (req, res) => {
 
 // GET /api/lists/:listId/members — list all members
 router.get("/lists/:listId/members", async (req, res) => {
-  const listId = Number(req.params.listId);
+  const listId = parseIdParam(req.params.listId, "listId");
   const members = await prisma.listMember.findMany({
     where: { listId },
     include: { user: true },
@@ -93,8 +96,8 @@ router.get("/lists/:listId/members", async (req, res) => {
 
 // POST /api/lists/:listId/members — add a user to a list
 router.post("/lists/:listId/members", async (req, res) => {
-  const listId = Number(req.params.listId);
-  const { userId } = req.body as { userId: number };
+  const listId = parseIdParam(req.params.listId, "listId");
+  const { userId } = addMemberSchema.parse(req.body);
 
   const member = await prisma.listMember.create({
     data: { userId, listId },
@@ -106,8 +109,8 @@ router.post("/lists/:listId/members", async (req, res) => {
 
 // DELETE /api/lists/:listId/members/:userId — remove a user from a list
 router.delete("/lists/:listId/members/:userId", async (req, res) => {
-  const listId = Number(req.params.listId);
-  const userId = Number(req.params.userId);
+  const listId = parseIdParam(req.params.listId, "listId");
+  const userId = parseIdParam(req.params.userId, "userId");
 
   const existing = await prisma.listMember.findUnique({
     where: { userId_listId: { userId, listId } },

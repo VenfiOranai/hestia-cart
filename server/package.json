@@ -14,6 +14,7 @@
     "@prisma/client": "^6.6.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.3.2",
     "ws": "^8.20.0",
     "zod": "^3.24.3"
   },
