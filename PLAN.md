@@ -1,6 +1,6 @@
 # Hestia Cart — Feature Plan
 
-> Status: **Milestone 10 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
+> Status: **Milestone 11 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
 
 ---
 
@@ -156,23 +156,32 @@ Notes:
 
 ---
 
-## Milestone 11 — Testing
+## Milestone 11 — Testing (DONE)
 
 ### 11.1 Server integration tests
 
-- Test each endpoint with a real SQLite database (not mocks)
-- Use Vitest + supertest
-- Seed data before each test suite, clean up after
+- `server/src/app.ts` — extracted an app factory `buildApp()` so supertest can mount the Express app without claiming port 3001. `server/src/index.ts` became a thin listener around it
+- `server/prisma/schema.prisma` — datasource switched from hardcoded `file:./dev.db` to `env("DATABASE_URL")`. `server/.env` holds the dev value; tests override via vitest config
+- `server/src/test/globalSetup.ts` — unlinks `prisma/test.db` and runs `prisma db push --skip-generate --accept-data-loss` once per run
+- `server/src/test/db.ts` — `resetDb()` helper deletes all rows in FK-child-first order; called in `beforeEach`
+- `server/vitest.config.ts` — sets `env.DATABASE_URL=file:./test.db`, `fileParallelism: false` (SQLite serialization), runs `src/**/*.test.ts`
+- `server/src/middleware/rateLimit.ts` — added `skip: () => process.env.NODE_ENV === "test"` so Vitest (which auto-sets `NODE_ENV=test`) isn't tripped by the 10/min cap
+- Coverage: 38 tests across `health`, `users`, `lists`, `items`, `purchases` — including cost-splitting edge cases (three-way even, with exclusions, mutual-debt netting)
 
 ### 11.2 Client component tests
 
-- Use Vitest + React Testing Library
-- Test key interactions: add item, change state, join flow
+- `client/vitest.config.ts` — `mergeConfig` with Vite config, `jsdom` environment, globals on, `setupFiles: ./src/test/setup.ts`
+- `client/src/test/setup.ts` — imports `@testing-library/jest-dom/vitest`, clears `localStorage` and runs RTL `cleanup()` after each test
+- Tests colocated as `*.test.tsx` next to components: `Toast`, `AddItemForm`, `ErrorBoundary`, `ItemRow` — 14 tests total
+- Gotchas documented inline: `user-event` hangs under `vi.useFakeTimers()` (switched to `fireEvent` for timer-dependent tests); the `×` delete button's accessible name is `×`, so `getByTitle("Delete item")` is used instead of `getByRole("button", { name: /delete/i })`
 
 ### 11.3 End-to-end tests
 
-- Use Playwright
-- Test the full flow: create list → share → join → add items → checkout → view splits
+- `playwright.config.ts` — isolated ports (3101 server, 5174 client), separate `e2e.db` SQLite file, `globalSetup` wipes + pushes schema, spawns both workspaces via `webServer`
+- `client/vite.config.ts` — parameterized proxy target via `VITE_API_TARGET` so the E2E client points at the E2E server without clobbering the dev stack on 3001/5173
+- `e2e/flow.spec.ts` — full happy path in two browser contexts: Alice logs in, creates "Weekend trip", copies share URL, Bob joins via link, Alice adds Milk, Bob sees it live over WS, Alice records a $5 purchase, splits show `$2.50`
+- **Real bug uncovered and fixed**: when Alice added an item, the WebSocket echo could arrive before the POST response, producing a duplicate row. `ListPage.handleItemUpserted` now dedupes all four orderings (temp-only, real-only via WS, both present, neither) by checking for a pre-existing real row with the same id as the server response and dropping the temp-id row instead of blindly mapping
+- Root `package.json` scripts: `npm test` (runs server then client unit/integration) and `npm run test:e2e` (Playwright)
 
 ---
 

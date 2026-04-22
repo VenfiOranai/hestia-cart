@@ -38,29 +38,42 @@ client/                    # React frontend (Vite on :5173)
     ListPage.tsx           # Main list view: grouped items, add form, members, share; subscribes via useListSocket
     JoinPage.tsx           # Join via share link (name + color picker)
   src/main.tsx             # Entry point
-  vite.config.ts           # Proxy /api/* and /ws → localhost:3001 (ws: true for the socket)
+  src/test/setup.ts        # Vitest setup: jest-dom matchers + per-test cleanup/localStorage clear
+  src/**/*.test.tsx        # Component tests colocated next to the component they cover
+  vite.config.ts           # Proxy /api/* and /ws → VITE_API_TARGET (defaults to localhost:3001; overridden in E2E)
+  vitest.config.ts         # jsdom, globals, setupFiles
 server/                    # Express backend (:3001)
-  src/index.ts             # App setup, middleware, route mounting; wraps Express in a raw http.Server so WS shares the port
+  src/app.ts               # buildApp() factory — middleware + routers + error handler (no HTTP listener)
+  src/index.ts             # Thin entrypoint: buildApp() + http.Server + attachWebSocketServer + listen
   src/db.ts                # Prisma client singleton
   src/ws.ts                # WebSocketServer (noServer mode) + broadcast(listId, event) helper + heartbeat
   src/schemas/             # Zod validation schemas (one file per resource + params.ts for parseIdParam)
   src/middleware/           # errorHandler.ts (ZodError→400, NotFoundError→404, else→500); rateLimit.ts (createResourceLimiter)
   src/routes/              # Express routers (users, lists, items, purchases); mutations call broadcast() after DB writes
-  prisma/schema.prisma     # Database schema (7 models)
+  src/test/                # Integration tests: globalSetup.ts, db.ts (resetDb), *.test.ts (supertest + real SQLite)
+  prisma/schema.prisma     # Database schema (7 models); datasource url = env("DATABASE_URL")
   prisma/seed.ts           # Test data seeder
   prisma.config.ts         # Prisma config (seed command)
+  vitest.config.ts         # Points at file:./test.db, fileParallelism: false, globalSetup
+  .env                     # DATABASE_URL=file:./dev.db (gitignored; .env.example checked in)
 shared/                    # Shared TypeScript types
   src/index.ts             # ListStatus enum, CartState enum, HealthResponse, barrel re-exports
   src/models.ts            # Base DB model interfaces (User, List, Item, etc.)
   src/responses.ts         # Nested response shapes (ListWithDetails, etc.) + DebtEntry, SplitsResponse, ApiError
   src/requests.ts          # Request body types (CreateUserBody, etc.)
   src/events.ts            # ListEvent discriminated union for WebSocket broadcasts
+e2e/                       # Playwright E2E suite (runs against its own stack on ports 3101/5174)
+  flow.spec.ts             # Full happy-path: login → create list → share → join → add items → purchase → splits
+  globalSetup.ts           # Wipes server/prisma/e2e.db and pushes schema before the run
+playwright.config.ts       # E2E config: isolated ports, webServer spawns both workspaces, 1 worker
 ```
 
 ## Commands
 
 ```bash
 npm run dev                        # Start both servers (concurrently)
+npm test                           # Server integration + client component tests (Vitest)
+npm run test:e2e                   # Playwright E2E (spawns isolated server/client on 3101/5174)
 npm run db:migrate -w server       # Run Prisma migrations
 npm run db:seed -w server          # Seed test data
 npm run db:studio -w server        # Open Prisma Studio
@@ -117,6 +130,11 @@ All mounted under `/api` in `server/src/index.ts`.
 - **Realtime broadcast** — Every mutation route calls `broadcast(listId, event)` from `server/src/ws.ts` after its DB write; `ListPage` consumes events via `useListSocket` and reuses functional `setList` updaters to stay consistent with optimistic updates. Broadcast payload is typed `unknown` because Prisma hands us `Date`s but the wire shape (from `shared/src/events.ts`) uses ISO strings — `JSON.stringify` handles the conversion
 - **Socket reconnect** — `useListSocket` uses exponential backoff (1s → 30s) and fires `onReconnect` after any non-initial open; `ListPage` handles it by refetching the full list once so any events missed during disconnect are applied
 - **Error boundary** — `components/ErrorBoundary.tsx` wraps the whole tree in `App.tsx`; catches rendering errors only (not event-handler / async errors — those need local try/catch + toast). Fallback has "Try again" (reset state) and "Reload" (hard refresh)
+- **App factory** — Server is split into `app.ts` (`buildApp()` returning a fully-configured Express app) and `index.ts` (thin HTTP listener + WS attach). Supertest consumes the app directly without claiming a port — do NOT move route wiring back into `index.ts`
+- **Test DB isolation** — Prisma datasource reads `env("DATABASE_URL")`; `server/.env` supplies the dev value, `server/vitest.config.ts` overrides to `file:./test.db`, Playwright's `webServer` overrides to `file:./e2e.db`. Each test DB is wiped + schema-pushed by its own globalSetup; between server tests, `resetDb()` (in `src/test/db.ts`) deletes all rows FK-child-first
+- **Rate limiter in tests** — `createResourceLimiter` has `skip: () => process.env.NODE_ENV === "test"` because Vitest auto-sets `NODE_ENV=test`. Production code doesn't read a test-only env var; tests bypass the shared counter without resetting module state between cases
+- **Optimistic + WS race** — When `handleAddItem` POSTs an item, the WebSocket echo can land before the POST response. `ListPage.handleItemUpserted` handles all four orderings: if a row with the server id already exists when the POST resolves, it drops the temp-id row instead of blindly mapping it. Keep this invariant if you refactor the reconciliation
+- **Client testing gotchas** — `user-event` stalls under `vi.useFakeTimers()`; use `fireEvent` for timer-dependent tests. The `×` delete button's accessible name is the text content `×`, not the `title` attribute — use `getByTitle("Delete item")`, not `getByRole("button", { name: /delete/i })`
 
 ## Conventions
 
@@ -128,7 +146,7 @@ All mounted under `/api` in `server/src/index.ts`.
 
 ## Current Status
 
-See `PLAN.md` for the full feature roadmap. Milestones 0-10 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages, list view core UI, join flow, checkout + cost splitting, polish & UX, realtime sync via WebSockets, hardening — strict path-param parsing, rate limiting, error boundary, index review). Next up: Milestone 11 (testing — server integration, component, E2E).
+See `PLAN.md` for the full feature roadmap. Milestones 0-11 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages, list view core UI, join flow, checkout + cost splitting, polish & UX, realtime sync via WebSockets, hardening, and testing — 38 server integration tests via supertest + real SQLite, 14 client component tests via Vitest + RTL, Playwright E2E happy-path on isolated ports). Next up: Milestone 12 (deployment — Postgres migration, production build, hosting).
 
 ## No Auth
 

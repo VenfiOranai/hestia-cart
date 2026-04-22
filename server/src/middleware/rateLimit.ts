@@ -12,6 +12,10 @@ export const createResourceLimiter = rateLimit({
   limit: 10, // per IP
   standardHeaders: "draft-7",
   legacyHeaders: false,
+  // Vitest sets NODE_ENV=test automatically; tests exercise these endpoints
+  // far more aggressively than a real client, so bypassing the counter there
+  // keeps suites from flaking on the 10/min cap.
+  skip: () => process.env.NODE_ENV === "test",
   handler: (_req, res) => {
     res.status(429).json({
       error: "Too many requests — please slow down and try again shortly.",

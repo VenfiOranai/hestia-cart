@@ -128,10 +128,22 @@ export default function ListPage() {
     setList((prev) => {
       if (!prev) return prev;
       const lookupId = replaceId ?? updated.id;
-      const exists = prev.items.some((i) => i.id === lookupId);
-      const items = exists
-        ? prev.items.map((i) => (i.id === lookupId ? updated : i))
-        : [...prev.items, updated];
+      // When adding an item, the WS echo can race the POST response. If the
+      // real row is already in the list by the time the POST resolves, drop
+      // the temp-id row instead of creating a duplicate.
+      const alreadyHasReal = prev.items.some(
+        (i) => i.id === updated.id && i.id !== lookupId,
+      );
+      let items: ItemWithDetails[];
+      if (alreadyHasReal) {
+        items = prev.items
+          .filter((i) => i.id !== lookupId)
+          .map((i) => (i.id === updated.id ? updated : i));
+      } else if (prev.items.some((i) => i.id === lookupId)) {
+        items = prev.items.map((i) => (i.id === lookupId ? updated : i));
+      } else {
+        items = [...prev.items, updated];
+      }
       return { ...prev, items };
     });
     if (exclusionItem && exclusionItem.id === (replaceId ?? updated.id)) {

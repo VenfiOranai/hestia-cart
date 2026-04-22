@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio"
@@ -22,9 +24,12 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.2",
     "@types/node": "^22.14.1",
+    "@types/supertest": "^7.2.0",
     "@types/ws": "^8.18.1",
     "prisma": "^6.6.0",
+    "supertest": "^7.2.2",
     "tsx": "^4.19.4",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.5"
   }
 }
