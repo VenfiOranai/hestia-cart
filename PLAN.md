@@ -1,6 +1,6 @@
 # Hestia Cart — Feature Plan
 
-> Status: **Milestone 8 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
+> Status: **Milestone 9 complete.** This document tracks every feature needed to go from scaffold to working app. Milestones are ordered by dependency — each one builds on the last.
 
 ---
 
@@ -110,44 +110,23 @@ Skipped for now: pull-to-refresh (browser-native behavior is sufficient; WebSock
 
 ---
 
-## Milestone 9 — Real-time Sync
+## Milestone 9 — Real-time Sync (DONE)
 
 So multiple people shopping together see updates live.
 
-### 9.1 WebSocket server
+- `ws` + `@types/ws` added to the server workspace
+- `shared/src/events.ts` — typed `ListEvent` union (`item:added`, `item:updated`, `item:deleted`, `member:joined`, `member:left`, `purchase:created`) re-exported from `shared`
+- `server/src/ws.ts` — attaches a `WebSocketServer` in `noServer` mode; `httpServer.on("upgrade")` validates `/ws?listId=N` (rejects non-existent lists), tracks connections in `Map<listId, Set<WebSocket>>`, and exposes `broadcast(listId, event)`
+- `server/src/index.ts` — creates a raw `http.Server` wrapping Express so the WebSocket server shares the same port (3001)
+- Broadcasts wired into `routes/items.ts` (create/update/delete + exclusion add/delete re-emit the updated item), `routes/lists.ts` (member join/leave), and `routes/purchases.ts` (purchase create)
+- `client/vite.config.ts` — `/ws` proxied to `ws://localhost:3001` (`ws: true`)
+- `client/src/hooks/useListSocket.ts` — WebSocket connection per listId with typed `onEvent`/`onReconnect` callbacks (stored in a ref so changing handlers doesn't reconnect); exponential backoff 1s → 30s on close/error
+- `ListPage` subscribes via `useListSocket`; events feed the same state via functional `setList` updates (upsert on item:added/updated, remove on item:deleted, add-if-new on member:joined, filter on member:left, bump `splitsRefreshKey` on purchase:created); `onReconnect` refetches the list once to catch missed events
+- Heartbeat: server pings every 30s and terminates sockets that don't pong back; client relies on the browser's automatic pong response and treats `close` as a reconnect signal
 
-Use `ws` (lightweight, Express-friendly) attached to the same HTTP server. Bidirectional channel — lets us add client-initiated messages later (e.g. presence, typing indicators) without switching transports.
-
-- Install `ws` (+ `@types/ws`)
-- Attach a `WebSocketServer` to the Node HTTP server in `server/src/index.ts` (share the port with Express)
-- Connection URL: `ws://host/ws?listId=:listId` — validate the list exists on upgrade, close with 1008 otherwise
-- Track connections in an in-memory `Map<listId, Set<WebSocket>>`; remove on `close`
-
-### 9.2 Broadcasting from mutations
-
-After each successful write in the route handlers, broadcast a JSON event to everyone subscribed to that list:
-
-```
-{ type: "<event-name>", payload: <resource> }
-```
-
-Event names: `item:added`, `item:updated`, `item:deleted`, `member:joined`, `member:left`, `purchase:created`.
-
-- Add a `broadcast(listId, event)` helper in `server/src/ws.ts`
-- Call it from `routes/items.ts`, `routes/lists.ts` (members), `routes/purchases.ts` after the DB write succeeds
-- The origin client echoes too — client dedupes by resource id (already applied optimistically)
-
-### 9.3 Client integration
-
-- `client/src/hooks/useListSocket.ts` — opens a `WebSocket` on mount, closes on unmount, calls a typed `onEvent` callback
-- `ListPage` wires socket events into the same upsert/delete/member handlers it already uses for optimistic updates
-- Apply deltas directly — no full refetch
-- Reconnect with exponential backoff (1s → 30s cap) on `close`/`error`; refetch the list once on successful reconnect to catch missed events
-
-### 9.4 Heartbeat
-
-- Server sends a WebSocket `ping` frame every 30s; terminates the socket if no `pong` within 10s
-- Client relies on the browser's automatic pong response; treats close as a reconnect signal
+Notes:
+- The echo-back to the origin client is idempotent — optimistic updates already keyed on id, so `setList` upserts converge
+- Payload type in `broadcast()` is intentionally `unknown` because Prisma returns `Date` in memory while the shared wire shape is ISO strings; `JSON.stringify` handles the conversion
 
 ---
 

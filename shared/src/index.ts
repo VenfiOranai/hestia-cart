@@ -24,3 +24,4 @@ export interface HealthResponse {
 export * from "./models.js";
 export * from "./responses.js";
 export * from "./requests.js";
+export * from "./events.js";

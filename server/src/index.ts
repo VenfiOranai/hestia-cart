@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import express from "express";
 import cors from "cors";
 import type { HealthResponse } from "shared";
@@ -6,6 +7,7 @@ import usersRouter from "./routes/users.js";
 import listsRouter from "./routes/lists.js";
 import itemsRouter from "./routes/items.js";
 import purchasesRouter from "./routes/purchases.js";
+import { attachWebSocketServer } from "./ws.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -40,7 +42,12 @@ app.use("/api", purchasesRouter);
 app.use(errorHandler);
 
 // --- Start ---
+// Create a raw HTTP server so we can attach the WebSocket server to the same port.
 
-app.listen(PORT, () => {
+const httpServer = createServer(app);
+attachWebSocketServer(httpServer);
+
+httpServer.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
+  console.log(`WebSocket endpoint: ws://localhost:${PORT}/ws?listId=...`);
 });

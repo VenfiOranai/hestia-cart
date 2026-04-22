@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../db.js";
 import { createPurchaseSchema } from "../schemas/index.js";
 import { NotFoundError } from "../middleware/errorHandler.js";
+import { broadcast } from "../ws.js";
 
 const router = Router();
 
@@ -24,6 +25,7 @@ router.post("/lists/:listId/purchases", async (req, res) => {
     },
   });
 
+  broadcast(listId, { type: "purchase:created", payload: purchase });
   res.status(201).json(purchase);
 });
 

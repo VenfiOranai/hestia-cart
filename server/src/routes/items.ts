@@ -6,6 +6,7 @@ import {
   createExclusionSchema,
 } from "../schemas/index.js";
 import { NotFoundError } from "../middleware/errorHandler.js";
+import { broadcast } from "../ws.js";
 
 const router = Router();
 
@@ -18,6 +19,7 @@ router.post("/lists/:listId/items", async (req, res) => {
     data: { ...data, listId },
     include: { exclusions: true, createdBy: true },
   });
+  broadcast(listId, { type: "item:added", payload: item });
   res.status(201).json(item);
 });
 
@@ -45,6 +47,7 @@ router.patch("/items/:id", async (req, res) => {
     data,
     include: { exclusions: true, createdBy: true },
   });
+  broadcast(item.listId, { type: "item:updated", payload: item });
   res.json(item);
 });
 
@@ -55,6 +58,7 @@ router.delete("/items/:id", async (req, res) => {
   if (!existing) throw new NotFoundError("Item", id);
 
   await prisma.item.delete({ where: { id } });
+  broadcast(existing.listId, { type: "item:deleted", payload: { id } });
   res.status(204).end();
 });
 
@@ -68,6 +72,12 @@ router.post("/items/:itemId/exclusions", async (req, res) => {
   const exclusion = await prisma.itemExclusion.create({
     data: { itemId, userId },
   });
+  // Re-fetch the item with details so listeners get the authoritative state.
+  const item = await prisma.item.findUnique({
+    where: { id: itemId },
+    include: { exclusions: true, createdBy: true },
+  });
+  if (item) broadcast(item.listId, { type: "item:updated", payload: item });
   res.status(201).json(exclusion);
 });
 
@@ -84,6 +94,11 @@ router.delete("/items/:itemId/exclusions/:userId", async (req, res) => {
   await prisma.itemExclusion.delete({
     where: { itemId_userId: { itemId, userId } },
   });
+  const item = await prisma.item.findUnique({
+    where: { id: itemId },
+    include: { exclusions: true, createdBy: true },
+  });
+  if (item) broadcast(item.listId, { type: "item:updated", payload: item });
   res.status(204).end();
 });
 

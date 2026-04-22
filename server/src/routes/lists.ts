@@ -6,6 +6,7 @@ import {
   updateListSchema,
 } from "../schemas/index.js";
 import { NotFoundError } from "../middleware/errorHandler.js";
+import { broadcast } from "../ws.js";
 
 const router = Router();
 
@@ -99,6 +100,7 @@ router.post("/lists/:listId/members", async (req, res) => {
     data: { userId, listId },
     include: { user: true },
   });
+  broadcast(listId, { type: "member:joined", payload: member });
   res.status(201).json(member);
 });
 
@@ -115,6 +117,7 @@ router.delete("/lists/:listId/members/:userId", async (req, res) => {
   await prisma.listMember.delete({
     where: { userId_listId: { userId, listId } },
   });
+  broadcast(listId, { type: "member:left", payload: { userId } });
   res.status(204).end();
 });
 

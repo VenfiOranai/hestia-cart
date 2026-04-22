@@ -12,6 +12,7 @@ import CheckoutModal from "../components/CheckoutModal";
 import SplitsCard from "../components/SplitsCard";
 import { ListPageSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
+import { useListSocket } from "../hooks/useListSocket";
 
 /** Read the saved user from localStorage (set during join flow). */
 function getSavedUser(): User | null {
@@ -38,6 +39,72 @@ export default function ListPage() {
       .then(setList)
       .catch((err) => setError(err.message));
   }, [id]);
+
+  // Subscribe to live updates for this list. The hook handles reconnect with
+  // exponential backoff and fires onReconnect so we can refetch once to catch
+  // any events that happened while we were disconnected.
+  const socketListId = list?.id ?? null;
+  useListSocket(socketListId, {
+    onEvent: (event) => {
+      switch (event.type) {
+        case "item:added":
+        case "item:updated": {
+          const incoming = event.payload;
+          setList((prev) => {
+            if (!prev) return prev;
+            const exists = prev.items.some((i) => i.id === incoming.id);
+            const items = exists
+              ? prev.items.map((i) => (i.id === incoming.id ? incoming : i))
+              : [...prev.items, incoming];
+            return { ...prev, items };
+          });
+          setExclusionItem((current) =>
+            current && current.id === incoming.id ? incoming : current,
+          );
+          break;
+        }
+        case "item:deleted": {
+          const deletedId = event.payload.id;
+          setList((prev) =>
+            prev
+              ? { ...prev, items: prev.items.filter((i) => i.id !== deletedId) }
+              : prev,
+          );
+          setExclusionItem((current) =>
+            current && current.id === deletedId ? null : current,
+          );
+          break;
+        }
+        case "member:joined": {
+          const member = event.payload;
+          setList((prev) => {
+            if (!prev) return prev;
+            if (prev.members.some((m) => m.id === member.id)) return prev;
+            return { ...prev, members: [...prev.members, member] };
+          });
+          break;
+        }
+        case "member:left": {
+          const leftUserId = event.payload.userId;
+          setList((prev) =>
+            prev
+              ? { ...prev, members: prev.members.filter((m) => m.userId !== leftUserId) }
+              : prev,
+          );
+          break;
+        }
+        case "purchase:created":
+          setSplitsRefreshKey((k) => k + 1);
+          break;
+      }
+    },
+    onReconnect: () => {
+      if (socketListId == null) return;
+      getList(socketListId)
+        .then(setList)
+        .catch(() => {});
+    },
+  });
 
   if (error) {
     return (
