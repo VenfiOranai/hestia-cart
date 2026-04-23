@@ -144,6 +144,24 @@ All mounted under `/api` in `server/src/index.ts`.
 - DELETE endpoints return 204 with no body
 - GET endpoints that include related data use Prisma `include` (not separate queries)
 
+## GitHub Workflow
+
+Default mode of work is issue-driven. Never commit directly to `main`.
+
+When the user gives you an issue number `N`:
+
+1. **Read it**: `gh issue view N` — understand scope before designing.
+2. **Branch**: `gh issue develop N --checkout` — creates `N-<slug>` linked to the issue and checks it out. Verify with `git branch --show-current`.
+3. **Implement** on the branch. Run `npm run typecheck` and `npm test` locally before pushing — CI will run them too, but local is faster feedback.
+4. **Commit + push**: `git push -u origin HEAD`.
+5. **Open PR**: `gh pr create --fill --body "Closes #N"` (append a short summary). Non-draft, so it triggers CI and signals it's ready for review. The `Closes #N` line auto-closes the issue on merge.
+6. **Watch CI**: `gh pr checks --watch`. If anything fails, `gh run view <id> --log-failed` to read the failing step, fix the root cause (no `--no-verify`, no skipping tests), commit, push to the same branch — CI re-runs automatically.
+7. **Stop and report** when CI is green. Do **not** merge. The user reviews and merges manually. Output the PR URL so they can jump straight to it.
+
+If CI keeps failing on something that looks unrelated to your change (flaky test, infra issue), surface it to the user instead of silently retrying.
+
+CI lives in `.github/workflows/ci.yml` and runs only on `pull_request` — no run on plain branch pushes without an open PR. Two parallel jobs: `test` (typecheck + unit) and `e2e` (Playwright with cached browsers).
+
 ## Current Status
 
 See `PLAN.md` for the full feature roadmap. Milestones 0-11 are complete (skeleton, server foundation, CRUD endpoints, shared types + API client, routing + pages, list view core UI, join flow, checkout + cost splitting, polish & UX, realtime sync via WebSockets, hardening, and testing — 38 server integration tests via supertest + real SQLite, 14 client component tests via Vitest + RTL, Playwright E2E happy-path on isolated ports). Next up: Milestone 12 (deployment — Postgres migration, production build, hosting).
