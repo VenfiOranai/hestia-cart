@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CartState } from "shared";
 import type { ItemWithDetails, ListMemberWithUser } from "shared";
-import { createPurchase } from "../api";
+import { createPurchase, getPurchases } from "../api";
 import type { PurchaseWithDetails } from "shared";
 
 interface Props {
@@ -26,9 +26,46 @@ export default function CheckoutModal({
     new Set(items.filter((i) => i.cartState === CartState.Purchased).map((i) => i.id))
   );
   const [prices, setPrices] = useState<Record<number, string>>({});
+  // itemId -> most recent priceCents from prior purchases.
+  const [priorPrices, setPriorPrices] = useState<Map<number, number>>(new Map());
   const [payerId, setPayerId] = useState(currentUserId);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch purchase history once so we can pre-fill the price input with the
+  // most recently recorded price for each item (and group items by whether
+  // they've been priced before).
+  useEffect(() => {
+    let cancelled = false;
+    getPurchases(listId)
+      .then((purchases) => {
+        if (cancelled) return;
+        // Server returns purchases ordered by createdAt desc, so the first
+        // occurrence of each itemId is the most recent price.
+        const map = new Map<number, number>();
+        for (const purchase of purchases) {
+          for (const pi of purchase.items) {
+            if (!map.has(pi.itemId)) {
+              map.set(pi.itemId, pi.priceCents);
+            }
+          }
+        }
+        setPriorPrices(map);
+        setPrices((prev) => {
+          const next = { ...prev };
+          for (const [itemId, cents] of map) {
+            if (next[itemId] == null || next[itemId] === "") {
+              next[itemId] = (cents / 100).toFixed(2);
+            }
+          }
+          return next;
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [listId]);
 
   function toggleItem(itemId: number) {
     setSelected((prev) => {
@@ -94,6 +131,55 @@ export default function CheckoutModal({
     return sum + (cents ?? 0);
   }, 0);
 
+  const needsPriceItems = items.filter((i) => !priorPrices.has(i.id));
+  const recordedItems = items.filter((i) => priorPrices.has(i.id));
+
+  function renderItemRow(item: ItemWithDetails) {
+    const isSelected = selected.has(item.id);
+    return (
+      <li
+        key={item.id}
+        className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
+          isSelected ? "bg-indigo-50" : "bg-gray-50 opacity-60"
+        }`}
+      >
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => toggleItem(item.id)}
+          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+        />
+        <span className="text-sm text-gray-900 flex-1 truncate">{item.name}</span>
+        {isSelected && (
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-400">$</span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={prices[item.id] ?? ""}
+              onChange={(e) => setPrice(item.id, e.target.value)}
+              className="w-20 rounded border border-gray-300 px-2 py-1 text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+        )}
+      </li>
+    );
+  }
+
+  function renderGroup(label: string, groupItems: ItemWithDetails[]) {
+    if (groupItems.length === 0) return null;
+    return (
+      <div>
+        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 px-1">
+          {label}
+        </h3>
+        <ul className="space-y-2">{groupItems.map(renderItemRow)}</ul>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
@@ -130,48 +216,13 @@ export default function CheckoutModal({
             </select>
           </div>
 
-          {/* Item selection + prices */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">
+          {/* Item selection + prices, grouped by whether they have a prior price */}
+          <div className="space-y-3">
+            <label className="block text-xs font-medium text-gray-500">
               Items &amp; prices
             </label>
-            <ul className="space-y-2">
-              {items.map((item) => {
-                const isSelected = selected.has(item.id);
-                return (
-                  <li
-                    key={item.id}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 transition-colors ${
-                      isSelected ? "bg-indigo-50" : "bg-gray-50 opacity-60"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleItem(item.id)}
-                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span className="text-sm text-gray-900 flex-1 truncate">
-                      {item.name}
-                    </span>
-                    {isSelected && (
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-400">$</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          value={prices[item.id] ?? ""}
-                          onChange={(e) => setPrice(item.id, e.target.value)}
-                          className="w-20 rounded border border-gray-300 px-2 py-1 text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
+            {renderGroup("Needs price", needsPriceItems)}
+            {renderGroup("Already recorded", recordedItems)}
           </div>
 
           {/* Total */}
