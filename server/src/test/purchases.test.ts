@@ -65,6 +65,37 @@ describe("purchases", () => {
         .send({ payerUserId: alice.id, items: [] });
       expect(res.status).toBe(400);
     });
+
+    it("marks purchased items' cartState as 'purchased'", async () => {
+      const { alice, list } = await threeMemberList();
+      const milk = await prisma.item.create({
+        data: { listId: list.id, name: "Milk", createdByUserId: alice.id },
+      });
+      const bread = await prisma.item.create({
+        data: {
+          listId: list.id,
+          name: "Bread",
+          createdByUserId: alice.id,
+          cartState: "inCart",
+        },
+      });
+
+      const res = await request(app)
+        .post(`/api/lists/${list.id}/purchases`)
+        .send({
+          payerUserId: alice.id,
+          items: [
+            { itemId: milk.id, priceCents: 500 },
+            { itemId: bread.id, priceCents: 300 },
+          ],
+        });
+
+      expect(res.status).toBe(201);
+      const stored = await prisma.item.findMany({
+        where: { id: { in: [milk.id, bread.id] } },
+      });
+      expect(stored.every((i) => i.cartState === "purchased")).toBe(true);
+    });
   });
 
   describe("GET /api/lists/:listId/splits", () => {

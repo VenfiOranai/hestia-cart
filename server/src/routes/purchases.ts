@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { CartState } from "shared";
 import prisma from "../db.js";
 import { createPurchaseSchema, parseIdParam } from "../schemas/index.js";
 import { NotFoundError } from "../middleware/errorHandler.js";
@@ -11,20 +12,41 @@ router.post("/lists/:listId/purchases", async (req, res) => {
   const listId = parseIdParam(req.params.listId, "listId");
   const { payerUserId, items } = createPurchaseSchema.parse(req.body);
 
-  const purchase = await prisma.purchase.create({
-    data: {
-      listId,
-      payerUserId,
-      items: {
-        create: items,
+  const itemIds = items.map((i) => i.itemId);
+
+  const { purchase, updatedItems } = await prisma.$transaction(async (tx) => {
+    const created = await tx.purchase.create({
+      data: {
+        listId,
+        payerUserId,
+        items: { create: items },
       },
-    },
-    include: {
-      items: { include: { item: true } },
-      payer: true,
-    },
+    });
+
+    await tx.item.updateMany({
+      where: { id: { in: itemIds }, cartState: { not: CartState.Purchased } },
+      data: { cartState: CartState.Purchased },
+    });
+
+    const purchase = await tx.purchase.findUniqueOrThrow({
+      where: { id: created.id },
+      include: {
+        items: { include: { item: true } },
+        payer: true,
+      },
+    });
+
+    const updatedItems = await tx.item.findMany({
+      where: { id: { in: itemIds } },
+      include: { exclusions: true, createdBy: true },
+    });
+
+    return { purchase, updatedItems };
   });
 
+  for (const item of updatedItems) {
+    broadcast(listId, { type: "item:updated", payload: item });
+  }
   broadcast(listId, { type: "purchase:created", payload: purchase });
   res.status(201).json(purchase);
 });
