@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { createItem, getList } from "../api";
 import { CartState } from "shared";
 import type { ItemWithDetails, ListWithDetails, PurchaseWithDetails, User } from "shared";
@@ -230,6 +230,14 @@ export default function ListPage() {
 
   return (
     <div className="space-y-6 pb-24 sm:pb-6">
+      {/* Back to home */}
+      <Link
+        to="/"
+        className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+      >
+        <span aria-hidden="true">←</span> Back to home
+      </Link>
+
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div>
