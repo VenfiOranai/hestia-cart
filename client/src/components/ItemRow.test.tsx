@@ -123,4 +123,11 @@ describe("ItemRow", () => {
     expect(screen.getByTitle("Edit exclusions")).toBeDisabled();
     expect(screen.getByRole("button", { name: /needed/i })).toBeDisabled();
   });
+
+  it("shows a colored initial avatar for each participating member", () => {
+    renderRow();
+    const avatar = screen.getByTitle("Alice");
+    expect(avatar).toHaveTextContent("A");
+    expect(avatar).toHaveStyle({ backgroundColor: "rgb(79, 70, 229)" });
+  });
 });
