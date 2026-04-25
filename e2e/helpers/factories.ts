@@ -1,4 +1,9 @@
-import { expect, type APIRequestContext, type Page } from "@playwright/test";
+import {
+  expect,
+  type APIRequestContext,
+  type Browser,
+  type Page,
+} from "@playwright/test";
 import {
   addItemButton,
   addItemInput,
@@ -227,6 +232,49 @@ export async function seedLoggedInOnList(
   await page.goto(`/list/${list.id}`);
   await expect(page.getByRole("heading", { name: options.listName })).toBeVisible();
   return { user, list };
+}
+
+/** Open a fresh browser context, seed the user into localStorage, and land
+ *  on `/list/:id` with the WebSocket fully connected.
+ *
+ *  Why the WS dance: cross-context realtime tests trigger API mutations and
+ *  expect the *other* page to receive the broadcast. The server only
+ *  broadcasts to currently-connected sockets, so if the API call lands
+ *  before the receiver's WS handshake completes the event is silently
+ *  dropped. We monkey-patch the page's `WebSocket` constructor to expose an
+ *  "opened" promise and await it before returning. */
+export async function pageAsMember(
+  browser: Browser,
+  user: User,
+  list: { id: number; name: string },
+): Promise<Page> {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    const OriginalWS = window.WebSocket;
+    let resolveOpened: (() => void) | null = null;
+    (window as unknown as { __hestiaWsOpened: Promise<void> }).__hestiaWsOpened =
+      new Promise<void>((r) => {
+        resolveOpened = r;
+      });
+    class PatchedWS extends OriginalWS {
+      constructor(url: string | URL, protocols?: string | string[]) {
+        super(url, protocols);
+        this.addEventListener("open", () => resolveOpened?.());
+      }
+    }
+    (window as unknown as { WebSocket: typeof WebSocket }).WebSocket = PatchedWS;
+  });
+  await page.goto("/");
+  await setSavedUser(page, user);
+  await page.goto(`/list/${list.id}`);
+  await page.getByRole("heading", { name: list.name }).waitFor();
+  await page.evaluate(
+    () =>
+      (window as unknown as { __hestiaWsOpened: Promise<void> })
+        .__hestiaWsOpened,
+  );
+  return page;
 }
 
 /** Seed an owner + N other members on a list, leaving the page on the list
