@@ -1,15 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { createItem, getList } from "../api";
+import { createItem, getList, getSplits } from "../api";
 import { CartState } from "shared";
-import type { ItemWithDetails, ListWithDetails, PurchaseWithDetails, User } from "shared";
+import type {
+  ItemWithDetails,
+  ListWithDetails,
+  PurchaseWithDetails,
+  SplitsResponse,
+  User,
+} from "shared";
 import AddItemForm from "../components/AddItemForm";
 import ItemRow from "../components/ItemRow";
 import ExclusionModal from "../components/ExclusionModal";
 import ShareButton from "../components/ShareButton";
 import MembersModal from "../components/MembersModal";
 import CheckoutModal from "../components/CheckoutModal";
-import SplitsCard from "../components/SplitsCard";
+import SplitsModal from "../components/SplitsModal";
 import { ListPageSkeleton } from "../components/Skeleton";
 import { useToast } from "../components/Toast";
 import { useListSocket } from "../hooks/useListSocket";
@@ -29,6 +35,8 @@ export default function ListPage() {
   const [exclusionItem, setExclusionItem] = useState<ItemWithDetails | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
+  const [showSplits, setShowSplits] = useState(false);
+  const [splits, setSplits] = useState<SplitsResponse | null>(null);
   const [splitsRefreshKey, setSplitsRefreshKey] = useState(0);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
@@ -51,6 +59,13 @@ export default function ListPage() {
       .then(setList)
       .catch((err) => setError(err.message));
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    getSplits(Number(id))
+      .then(setSplits)
+      .catch(() => {});
+  }, [id, splitsRefreshKey]);
 
   // Subscribe to live updates for this list. The hook handles reconnect with
   // exponential backoff and fires onReconnect so we can refetch once to catch
@@ -316,6 +331,22 @@ export default function ListPage() {
             <span>
               {list.items.length} item{list.items.length !== 1 && "s"}
             </span>
+            {splits && splits.debts.length > 0 && (
+              <>
+                <span aria-hidden="true">&middot;</span>
+                <button
+                  type="button"
+                  onClick={() => setShowSplits(true)}
+                  aria-label={`View splits ($${(splits.totalCents / 100).toFixed(2)} total)`}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 -mx-1 hover:bg-gray-100"
+                >
+                  <span aria-hidden="true">💸</span>
+                  <span className="font-medium text-gray-700">
+                    ${(splits.totalCents / 100).toFixed(2)}
+                  </span>
+                </button>
+              </>
+            )}
           </div>
         </div>
         <ShareButton shareToken={list.shareToken} />
@@ -392,9 +423,6 @@ export default function ListPage() {
         </button>
       )}
 
-      {/* Cost splits */}
-      <SplitsCard listId={list.id} refreshKey={splitsRefreshKey} />
-
       {/* Bottom-anchored add-item input (mobile-friendly) */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
         <div className="mx-auto w-full max-w-lg">
@@ -433,6 +461,11 @@ export default function ListPage() {
           onClose={() => setShowMembers(false)}
           onMemberRemoved={handleMemberRemoved}
         />
+      )}
+
+      {/* Splits modal */}
+      {showSplits && splits && splits.debts.length > 0 && (
+        <SplitsModal splits={splits} onClose={() => setShowSplits(false)} />
       )}
     </div>
   );

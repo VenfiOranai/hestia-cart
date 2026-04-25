@@ -70,9 +70,15 @@ test("two users share a list, add items, and split a purchase", async ({
 
   await modal.getByRole("button", { name: "Record Purchase" }).click();
 
-  // --- Splits show Bob owes Alice $2.50 ---
-  await expect(alicePage.getByRole("heading", { name: "Cost Splitting" })).toBeVisible({
-    timeout: 5000,
+  // --- Splits chip appears in the header; tap it to open the modal ---
+  const splitsChip = alicePage.getByRole("button", {
+    name: /view splits \(\$5\.00 total\)/i,
   });
+  await expect(splitsChip).toBeVisible({ timeout: 5000 });
+  await splitsChip.click();
+
+  await expect(
+    alicePage.getByRole("heading", { name: "Cost Splitting" }),
+  ).toBeVisible();
   await expect(alicePage.getByText("$2.50")).toBeVisible();
 });
