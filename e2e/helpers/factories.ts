@@ -152,6 +152,51 @@ export async function apiAddItem(
   return res.json();
 }
 
+export async function apiUpdateItem(
+  request: APIRequestContext,
+  itemId: number,
+  data: { cartState?: string; name?: string },
+): Promise<Item> {
+  const res = await request.patch(`/api/items/${itemId}`, { data });
+  expect(
+    res.ok(),
+    `apiUpdateItem ${itemId} failed: ${res.status()}`,
+  ).toBeTruthy();
+  return res.json();
+}
+
+export async function apiAddExclusion(
+  request: APIRequestContext,
+  itemId: number,
+  userId: number,
+): Promise<void> {
+  const res = await request.post(`/api/items/${itemId}/exclusions`, {
+    data: { userId },
+  });
+  expect(
+    res.ok(),
+    `apiAddExclusion item=${itemId} user=${userId} failed: ${res.status()}`,
+  ).toBeTruthy();
+}
+
+export async function apiCreatePurchase(
+  request: APIRequestContext,
+  listId: number,
+  payload: {
+    payerUserId: number;
+    items: { itemId: number; priceCents: number }[];
+  },
+): Promise<unknown> {
+  const res = await request.post(`/api/lists/${listId}/purchases`, {
+    data: payload,
+  });
+  expect(
+    res.ok(),
+    `apiCreatePurchase on list ${listId} failed: ${res.status()}`,
+  ).toBeTruthy();
+  return res.json();
+}
+
 /** Write a saved-user blob to localStorage so the page treats this user as
  *  logged in without going through the UI login flow. Must be called after
  *  navigating to the app origin (otherwise localStorage is scoped to about:blank). */
@@ -182,4 +227,31 @@ export async function seedLoggedInOnList(
   await page.goto(`/list/${list.id}`);
   await expect(page.getByRole("heading", { name: options.listName })).toBeVisible();
   return { user, list };
+}
+
+/** Seed an owner + N other members on a list, leaving the page on the list
+ *  view as the owner. Use for specs that need a multi-member context but
+ *  don't care about the join flow. */
+export async function seedListWithMembers(
+  page: Page,
+  request: APIRequestContext,
+  options: {
+    ownerName: string;
+    otherNames: string[];
+    listName: string;
+    ownerColor?: string;
+  },
+): Promise<{ owner: User; others: User[]; list: List }> {
+  const { user: owner, list } = await seedLoggedInOnList(page, request, {
+    userName: options.ownerName,
+    listName: options.listName,
+    userColor: options.ownerColor,
+  });
+  const others: User[] = [];
+  for (const name of options.otherNames) {
+    const u = await apiCreateUser(request, name);
+    await apiAddMember(request, list.id, u.id);
+    others.push(u);
+  }
+  return { owner, others, list };
 }
