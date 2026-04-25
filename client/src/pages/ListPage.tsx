@@ -30,6 +30,16 @@ export default function ListPage() {
   const [showCheckout, setShowCheckout] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [splitsRefreshKey, setSplitsRefreshKey] = useState(0);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+
+  function toggleGroup(key: string) {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   const currentUser = getSavedUser();
   const currentUserId = currentUser?.id ?? null;
@@ -208,23 +218,47 @@ export default function ListPage() {
 
   function renderGroup(label: string, items: ItemWithDetails[]) {
     if (items.length === 0) return null;
+    const isCollapsed = collapsedGroups.has(label);
     return (
       <div>
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 px-1">
-          {label} ({items.length})
-        </h3>
-        <ul className="divide-y divide-gray-200 border rounded-lg bg-white">
-          {items.map((item) => (
-            <ItemRow
-              key={item.id}
-              item={item}
-              members={list!.members}
-              onUpdated={handleItemUpserted}
-              onDeleted={handleItemDeleted}
-              onExclusionClick={setExclusionItem}
-            />
-          ))}
-        </ul>
+        <button
+          type="button"
+          onClick={() => toggleGroup(label)}
+          aria-expanded={!isCollapsed}
+          className="flex w-full items-center gap-1 text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 px-1 hover:text-gray-600"
+        >
+          <span
+            aria-hidden="true"
+            className={`inline-block transition-transform ${
+              isCollapsed ? "" : "rotate-90"
+            }`}
+          >
+            ▸
+          </span>
+          <span>
+            {label} ({items.length})
+          </span>
+        </button>
+        <div
+          className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
+            isCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"
+          }`}
+        >
+          <div className="overflow-hidden">
+            <ul className="divide-y divide-gray-200 border rounded-lg bg-white">
+              {items.map((item) => (
+                <ItemRow
+                  key={item.id}
+                  item={item}
+                  members={list!.members}
+                  onUpdated={handleItemUpserted}
+                  onDeleted={handleItemDeleted}
+                  onExclusionClick={setExclusionItem}
+                />
+              ))}
+            </ul>
+          </div>
+        </div>
       </div>
     );
   }
