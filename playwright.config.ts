@@ -28,7 +28,7 @@ export default defineConfig({
 
   webServer: [
     {
-      command: `cross-env PORT=${SERVER_PORT} DATABASE_URL=file:./e2e.db npm run dev -w server`,
+      command: `cross-env NODE_ENV=test PORT=${SERVER_PORT} DATABASE_URL=file:./e2e.db npm run dev -w server`,
       port: SERVER_PORT,
       reuseExistingServer: !process.env.CI,
       stdout: "pipe",
