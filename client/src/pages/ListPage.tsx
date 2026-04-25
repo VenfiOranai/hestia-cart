@@ -239,20 +239,26 @@ export default function ListPage() {
             {label} ({items.length})
           </span>
         </button>
-        {!isCollapsed && (
-          <ul className="divide-y divide-gray-200 border rounded-lg bg-white">
-            {items.map((item) => (
-              <ItemRow
-                key={item.id}
-                item={item}
-                members={list!.members}
-                onUpdated={handleItemUpserted}
-                onDeleted={handleItemDeleted}
-                onExclusionClick={setExclusionItem}
-              />
-            ))}
-          </ul>
-        )}
+        <div
+          className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out ${
+            isCollapsed ? "grid-rows-[0fr] opacity-0" : "grid-rows-[1fr] opacity-100"
+          }`}
+        >
+          <div className="overflow-hidden">
+            <ul className="divide-y divide-gray-200 border rounded-lg bg-white">
+              {items.map((item) => (
+                <ItemRow
+                  key={item.id}
+                  item={item}
+                  members={list!.members}
+                  onUpdated={handleItemUpserted}
+                  onDeleted={handleItemDeleted}
+                  onExclusionClick={setExclusionItem}
+                />
+              ))}
+            </ul>
+          </div>
+        </div>
       </div>
     );
   }
