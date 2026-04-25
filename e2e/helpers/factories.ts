@@ -81,10 +81,17 @@ export async function joinAsNewUser(
   await page.waitForURL(/\/list\/\d+/);
 }
 
-/** Add an item via the bottom add-item form. */
+/** Add an item via the bottom add-item form. Waits for the server to acknowledge
+ *  the POST so callers can navigate away without racing the optimistic add. */
 export async function addItemUI(page: Page, name: string): Promise<void> {
   await addItemInput(page).fill(name);
+  const responsePromise = page.waitForResponse(
+    (res) =>
+      /\/api\/lists\/\d+\/items$/.test(res.url()) &&
+      res.request().method() === "POST",
+  );
   await addItemButton(page).click();
+  await responsePromise;
 }
 
 // =========================================================================
@@ -152,4 +159,27 @@ export async function setSavedUser(page: Page, user: User): Promise<void> {
   await page.evaluate((u) => {
     localStorage.setItem("hestia-user", JSON.stringify(u));
   }, user);
+}
+
+/** Seed a user, list, membership, and drop the user on the list page already
+ *  "logged in" via localStorage. Use this when the login/create flow isn't
+ *  what's under test. */
+export async function seedLoggedInOnList(
+  page: Page,
+  request: APIRequestContext,
+  options: { userName: string; listName: string; userColor?: string },
+): Promise<{ user: User; list: List }> {
+  const user = await apiCreateUser(
+    request,
+    options.userName,
+    options.userColor,
+  );
+  const list = await apiCreateList(request, options.listName);
+  await apiAddMember(request, list.id, user.id);
+  // Visit the origin first so localStorage is scoped to it, then seed and go.
+  await page.goto("/");
+  await setSavedUser(page, user);
+  await page.goto(`/list/${list.id}`);
+  await expect(page.getByRole("heading", { name: options.listName })).toBeVisible();
+  return { user, list };
 }
