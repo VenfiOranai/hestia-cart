@@ -7,7 +7,7 @@ import AddItemForm from "../components/AddItemForm";
 import ItemRow from "../components/ItemRow";
 import ExclusionModal from "../components/ExclusionModal";
 import ShareButton from "../components/ShareButton";
-import MemberList from "../components/MemberList";
+import MembersModal from "../components/MembersModal";
 import CheckoutModal from "../components/CheckoutModal";
 import SplitsCard from "../components/SplitsCard";
 import { ListPageSkeleton } from "../components/Skeleton";
@@ -28,6 +28,7 @@ export default function ListPage() {
   const [error, setError] = useState<string | null>(null);
   const [exclusionItem, setExclusionItem] = useState<ItemWithDetails | null>(null);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
   const [splitsRefreshKey, setSplitsRefreshKey] = useState(0);
 
   const currentUser = getSavedUser();
@@ -240,12 +241,41 @@ export default function ListPage() {
 
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-gray-900">{list.name}</h1>
-          <p className="text-sm text-gray-500">
-            {list.members.length} member{list.members.length !== 1 && "s"} &middot;{" "}
-            {list.items.length} item{list.items.length !== 1 && "s"}
-          </p>
+          <div className="mt-1 flex items-center gap-2 text-sm text-gray-500">
+            <button
+              type="button"
+              onClick={() => setShowMembers(true)}
+              className="inline-flex items-center gap-2 rounded-full px-1 py-0.5 -ml-1 hover:bg-gray-100"
+              aria-label="View members"
+            >
+              <span className="flex -space-x-1.5">
+                {list.members.slice(0, 4).map((m) => (
+                  <span
+                    key={m.id}
+                    className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white text-[10px] font-semibold text-white"
+                    style={{ backgroundColor: m.user.color }}
+                    title={m.user.name}
+                  >
+                    {m.user.name.charAt(0).toUpperCase()}
+                  </span>
+                ))}
+                {list.members.length > 4 && (
+                  <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-white bg-gray-300 text-[10px] font-semibold text-gray-700">
+                    +{list.members.length - 4}
+                  </span>
+                )}
+              </span>
+              <span>
+                {list.members.length} member{list.members.length !== 1 && "s"}
+              </span>
+            </button>
+            <span aria-hidden="true">&middot;</span>
+            <span>
+              {list.items.length} item{list.items.length !== 1 && "s"}
+            </span>
+          </div>
         </div>
         <ShareButton shareToken={list.shareToken} />
       </div>
@@ -282,14 +312,6 @@ export default function ListPage() {
       {/* Cost splits */}
       <SplitsCard listId={list.id} refreshKey={splitsRefreshKey} />
 
-      {/* Members */}
-      <MemberList
-        members={list.members}
-        listId={list.id}
-        currentUserId={currentUserId}
-        onMemberRemoved={handleMemberRemoved}
-      />
-
       {/* Bottom-anchored add-item input (mobile-friendly) */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none">
         <div className="mx-auto w-full max-w-lg">
@@ -316,6 +338,17 @@ export default function ListPage() {
           currentUserId={currentUserId}
           onClose={() => setShowCheckout(false)}
           onPurchaseCreated={handlePurchaseCreated}
+        />
+      )}
+
+      {/* Members modal */}
+      {showMembers && (
+        <MembersModal
+          members={list.members}
+          listId={list.id}
+          currentUserId={currentUserId}
+          onClose={() => setShowMembers(false)}
+          onMemberRemoved={handleMemberRemoved}
         />
       )}
     </div>

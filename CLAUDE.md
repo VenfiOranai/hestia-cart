@@ -25,7 +25,7 @@ client/                    # React frontend (Vite on :5173)
     ItemRow.tsx            # Item with state cycling, delete, exclusion badges; optimistic updates
     ExclusionModal.tsx     # Bottom-sheet modal to toggle member exclusions per item
     ShareButton.tsx        # Copy share URL to clipboard
-    MemberList.tsx         # Colored member badges, leave button
+    MembersModal.tsx       # Members list in a modal, opened from the header member count; leave button
     CheckoutModal.tsx      # Record a purchase: select items, enter prices, pick payer
     SplitsCard.tsx         # Display who owes whom after purchases are recorded
     Toast.tsx              # ToastProvider + useToast hook (success/error/info, auto-dismiss)
