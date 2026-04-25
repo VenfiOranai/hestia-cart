@@ -31,6 +31,7 @@ export default function ListPage() {
   const [showMembers, setShowMembers] = useState(false);
   const [splitsRefreshKey, setSplitsRefreshKey] = useState(0);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
 
   function toggleGroup(key: string) {
     setCollapsedGroups((prev) => {
@@ -129,10 +130,15 @@ export default function ListPage() {
     return <ListPageSkeleton />;
   }
 
-  // Group items by cartState
-  const needed = list.items.filter((i) => i.cartState === CartState.Needed);
-  const inCart = list.items.filter((i) => i.cartState === CartState.InCart);
-  const purchased = list.items.filter((i) => i.cartState === CartState.Purchased);
+  // Filter by search query, then group by cartState
+  const trimmedQuery = searchQuery.trim().toLowerCase();
+  const isSearching = trimmedQuery.length > 0;
+  const filteredItems = isSearching
+    ? list.items.filter((i) => i.name.toLowerCase().includes(trimmedQuery))
+    : list.items;
+  const needed = filteredItems.filter((i) => i.cartState === CartState.Needed);
+  const inCart = filteredItems.filter((i) => i.cartState === CartState.InCart);
+  const purchased = filteredItems.filter((i) => i.cartState === CartState.Purchased);
 
   /** Upsert an item into the list (insert if missing, replace if present). */
   function handleItemUpserted(updated: ItemWithDetails, replaceId?: number) {
@@ -218,7 +224,8 @@ export default function ListPage() {
 
   function renderGroup(label: string, items: ItemWithDetails[]) {
     if (items.length === 0) return null;
-    const isCollapsed = collapsedGroups.has(label);
+    // While searching, force groups open so matches aren't hidden behind a collapsed header.
+    const isCollapsed = !isSearching && collapsedGroups.has(label);
     return (
       <div>
         <button
@@ -314,6 +321,36 @@ export default function ListPage() {
         <ShareButton shareToken={list.shareToken} />
       </div>
 
+      {/* Search bar — only useful when there are items to filter */}
+      {list.items.length > 0 && (
+        <div className="relative">
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          >
+            🔍
+          </span>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search items..."
+            aria-label="Search items"
+            className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-9 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              aria-label="Clear search"
+              className="absolute right-1 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded text-gray-400 hover:text-gray-600 text-xl leading-none"
+            >
+              &times;
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Items grouped by state */}
       {list.items.length === 0 ? (
         <div className="rounded-lg border-2 border-dashed border-gray-200 bg-white py-10 px-4 text-center">
@@ -323,6 +360,18 @@ export default function ListPage() {
             {currentUserId
               ? "Add your first item below to get started."
               : "Join the list to add items."}
+          </p>
+        </div>
+      ) : filteredItems.length === 0 ? (
+        <div className="rounded-lg border-2 border-dashed border-gray-200 bg-white py-8 px-4 text-center">
+          <p className="text-3xl mb-2">🔍</p>
+          <p className="text-sm font-medium text-gray-700">
+            No items match &ldquo;{searchQuery.trim()}&rdquo;
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            {currentUserId
+              ? "Add it below if you'd like."
+              : "Try a different search."}
           </p>
         </div>
       ) : (
