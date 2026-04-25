@@ -6,6 +6,7 @@ import usersRouter from "./routes/users.js";
 import listsRouter from "./routes/lists.js";
 import itemsRouter from "./routes/items.js";
 import purchasesRouter from "./routes/purchases.js";
+import testResetRouter from "./routes/testReset.js";
 
 export function buildApp(): Express {
   const app = express();
@@ -30,6 +31,7 @@ export function buildApp(): Express {
   app.use("/api", listsRouter);
   app.use("/api", itemsRouter);
   app.use("/api", purchasesRouter);
+  app.use("/api", testResetRouter);
 
   app.use(errorHandler);
 
